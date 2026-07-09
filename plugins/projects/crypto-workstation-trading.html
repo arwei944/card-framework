@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Workstation - Trading (CardFrame)</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:system-ui,sans-serif; background:var(--cf-bg-100,#0f172a); color:var(--cf-text-primary,#f1f5f9); min-height:100vh; }
+    .cw-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid var(--cf-border,rgba(255,255,255,0.1)); }
+    .cw-nav { display:flex; gap:0.5rem; }
+    .cw-nav a { padding:0.5rem 1rem; color:var(--cf-text-secondary,#94a3b8); text-decoration:none; border-radius:0.5rem; font-size:0.875rem; }
+    .cw-nav a.active { background:var(--cf-primary,#6366f1); color:#fff; }
+    .theme-switcher { display:flex; gap:0.5rem; }
+    .theme-btn { padding:0.25rem 0.75rem; border:1px solid var(--cf-border); background:transparent; color:var(--cf-text-secondary); border-radius:0.25rem; cursor:pointer; font-size:0.75rem; }
+    .theme-btn:hover { background:var(--cf-bg-200); }
+    .cw-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; padding:1.5rem; max-width:1400px; margin:0 auto; }
+    @media(max-width:768px){ .cw-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="cw-header">
+    <h2>Crypto Workstation</h2>
+    <nav class="cw-nav">
+      <a href="crypto-workstation-trading.html" class="active">Trading</a>
+      <a href="crypto-workstation-analysis.html">Analysis</a>
+      <a href="crypto-workstation-strategy.html">Strategy</a>
+    </nav>
+    <div class="theme-switcher">
+      <button class="theme-btn" data-theme="deep-space">Deep</button>
+      <button class="theme-btn" data-theme="industrial">Ind</button>
+      <button class="theme-btn" data-theme="mint">Mint</button>
+      <button class="theme-btn" data-theme="neon">Neon</button>
+      <button class="theme-btn" data-theme="platinum">Plat</button>
+    </div>
+  </header>
+  <div id="cardContainer" class="cw-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../crypto-workstation/crypto-workstation-core.js"></script>
+  <script>
+    (function(){
+      const container = document.getElementById('cardContainer');
+      const frame = new CardFrame(container, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(frame.typeRegistry);
+      CardFrameTailwindIntegration.install(frame, { project:'crypto-workstation' });
+      CardFrameCryptoWorkstationCore.install(frame, { page:'trading' });
+      CardFrameSharedInteractions.install(frame);
+      frame.themeManager.applyTheme('deep-space');
+
+      frame.addCard({ id:'tp1', type:'trade-panel', props:{ title:'BTC/USDT', pair:'BTC/USDT', price:43250.50, change:2.35, span:'span-1' } });
+      frame.addCard({ id:'tp2', type:'trade-panel', props:{ title:'ETH/USDT', pair:'ETH/USDT', price:2650.20, change:-0.85, span:'span-1' } });
+      frame.addCard({ id:'ob1', type:'order-book', props:{ title:'订单簿', bids:[{price:43250,amount:0.5},{price:43245,amount:1.2}], asks:[{price:43255,amount:0.3},{price:43260,amount:0.8}], span:'span-1' } });
+      frame.addCard({ id:'acc1', type:'account-summary', props:{ title:'账户', totalBalance:125000, available:85000, inOrder:40000, span:'span-1' } });
+
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => frame.themeManager.applyTheme(btn.dataset.theme));
+      });
+      window.cwFrame = frame;
+    })();
+  </script>
+</body>
+</html>

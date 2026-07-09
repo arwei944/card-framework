@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CardFrame v1.0 - D.2/D.3 性能优化与 Shadow DOM</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; }
+    .section { background: white; padding: 20px; margin: 16px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    button { padding: 8px 16px; margin: 4px; background: #4A90E2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #357ABD; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    .stat { display: inline-block; margin: 8px 16px 8px 0; padding: 8px 12px; background: #f0f8ff; border-left: 3px solid #4A90E2; }
+    .stat strong { color: #4A90E2; }
+    .shadow-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    cf-shadow-card { display: block; min-height: 100px; }
+  </style>
+</head>
+<body>
+  <h1>🚀 CardFrame v1.0 - D.2/D.3 性能优化与 Web Components 增强</h1>
+
+  <div class="section">
+    <h2>📊 D.2.1 卡片对象池 (CardObjectPool)</h2>
+    <p>复用卡片对象，减少 GC 压力，提升频繁创建/删除场景性能。</p>
+    <button onclick="testPool()">运行对象池测试</button>
+    <button onclick="poolStats()">查看池统计</button>
+    <pre id="pool-log">点击按钮运行测试...</pre>
+  </div>
+
+  <div class="section">
+    <h2>📊 D.2.2 布局缓存 (LayoutCache)</h2>
+    <p>缓存布局结果，仅对变更卡片增量计算。</p>
+    <button onclick="testCache()">运行布局缓存测试</button>
+    <pre id="cache-log">点击按钮运行测试...</pre>
+  </div>
+
+  <div class="section">
+    <h2>📊 D.2.3 查询索引 (QueryIndex)</h2>
+    <p>为 Store 卡片按类型/标签/状态建立索引，加速大数据量查询。</p>
+    <button onclick="testIndex()">运行索引测试</button>
+    <button onclick="runBenchmark()">性能对比测试</button>
+    <pre id="index-log">点击按钮运行测试...</pre>
+  </div>
+
+  <div class="section">
+    <h2>🎯 D.3 Web Components 增强 (cf-shadow-card)</h2>
+    <p>Shadow DOM 样式隔离，自定义事件，插槽支持。</p>
+    <div class="shadow-card-grid">
+      <cf-shadow-card type="note" data-props='{"title":"笔记1","content":"这是通过 Shadow DOM 渲染的卡片"}'></cf-shadow-card>
+      <cf-shadow-card type="todo" data-props='{"title":"待办","content":"完成 v1.0 发布"}'></cf-shadow-card>
+      <cf-shadow-card type="alert" data-props='{"title":"提示","content":"Shadow DOM 隔离了外部样式污染"}'></cf-shadow-card>
+    </div>
+    <button onclick="emitEvents()">触发自定义事件</button>
+    <pre id="shadow-log">事件日志：</pre>
+  </div>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    // 注册 Shadow Card 模板
+    CardFrame.shadowCardRegistry.registerStyle('note', `
+      .cf-shadow-wrapper { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; border-radius: 4px; }
+      h3 { margin: 0 0 8px; color: #1976d2; }
+      p { margin: 0; color: #555; }
+    `);
+    CardFrame.shadowCardRegistry.registerTemplate('note', `
+      <h3>\${title}</h3>
+      <p>\${content}</p>
+    `);
+
+    CardFrame.shadowCardRegistry.registerStyle('todo', `
+      .cf-shadow-wrapper { background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px; border-radius: 4px; }
+      h3 { margin: 0 0 8px; color: #f57c00; }
+      p { margin: 0; color: #555; }
+    `);
+    CardFrame.shadowCardRegistry.registerTemplate('todo', `
+      <h3>☑️ \${title}</h3>
+      <p>\${content}</p>
+    `);
+
+    CardFrame.shadowCardRegistry.registerStyle('alert', `
+      .cf-shadow-wrapper { background: #ffebee; border-left: 4px solid #f44336; padding: 12px; border-radius: 4px; }
+      h3 { margin: 0 0 8px; color: #c62828; }
+      p { margin: 0; color: #555; }
+    `);
+    CardFrame.shadowCardRegistry.registerTemplate('alert', `
+      <h3>⚠️ \${title}</h3>
+      <p>\${content}</p>
+    `);
+
+    // 延迟注册避免重复定义
+    setTimeout(() => {
+      try { CardFrame.defineShadowCard(); } catch (e) {}
+    }, 100);
+
+    function log(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = (msg + '\n' + el.textContent).slice(0, 2000);
+    }
+
+    function testPool() {
+      const pool = new CardFrame.CardObjectPool({ maxPerType: 5 });
+      const lines = [];
+
+      // 模拟频繁创建
+      for (let i = 0; i < 5; i++) {
+        let card = pool.acquire('text') || { id: `c${i}`, type: 'text', props: {} };
+        card.id = `c${i}`;
+        card.props = { title: `Card ${i}` };
+        pool.release(card);
+      }
+      // 再次获取（应该命中）
+      for (let i = 0; i < 3; i++) {
+        const card = pool.acquire('text');
+        lines.push(`Acquire ${i}: ${card ? `hit (id=${card.id})` : 'miss'}`);
+      }
+      const stats = pool.getStats();
+      lines.push(`\n统计: hits=${stats.hits} misses=${stats.misses} releases=${stats.releases} hitRate=${(stats.hitRate * 100).toFixed(1)}%`);
+      log('pool-log', lines.join('\n'));
+    }
+
+    function poolStats() {
+      log('pool-log', '请先点击 "运行对象池测试"');
+    }
+
+    function testCache() {
+      const cache = new CardFrame.LayoutCache({ maxSize: 100 });
+      const lines = [];
+
+      cache.set('c1', { x: 0, y: 0 });
+      cache.set('c2', { x: 100, y: 0 });
+      const v1 = cache.get('c1');
+      lines.push(`首次获取 c1: ${JSON.stringify(v1)}`);
+      const v1Again = cache.get('c1');
+      lines.push(`再次获取 c1: ${JSON.stringify(v1Again)}`);
+
+      cache.markDirty('c1');
+      lines.push(`标记 c1 为脏: isDirty=${cache.isDirty('c1')}`);
+      lines.push(`脏卡片: [${cache.getDirtyCards().join(', ')}]`);
+
+      cache.invalidateAll?.();
+      cache.remove('c1');
+      const stats = cache.getStats();
+      lines.push(`\n统计: hits=${stats.hits} misses=${stats.misses} hitRate=${(stats.hitRate * 100).toFixed(1)}%`);
+      log('cache-log', lines.join('\n'));
+    }
+
+    function testIndex() {
+      const idx = new CardFrame.QueryIndex();
+      const lines = [];
+
+      // 添加 1000 张卡片
+      const types = ['text', 'task', 'image'];
+      const tags = ['urgent', 'work', 'home'];
+      const statuses = ['active', 'completed'];
+      for (let i = 0; i < 1000; i++) {
+        idx.add({
+          id: `c${i}`,
+          type: types[i % 3],
+          status: statuses[i % 2],
+          props: { tags: [tags[i % 3]] }
+        });
+      }
+
+      const t = idx.queryByType('task');
+      const u = idx.queryByTag('urgent');
+      const a = idx.queryByStatus('active');
+      const combo = idx.query({ type: 'task', tag: 'urgent', status: 'active' });
+
+      lines.push(`queryByType('task'): ${t.length}`);
+      lines.push(`queryByTag('urgent'): ${u.length}`);
+      lines.push(`queryByStatus('active'): ${a.length}`);
+      lines.push(`query({type:'task',tag:'urgent',status:'active'}): ${combo.length}`);
+      lines.push(`\n索引统计: ${JSON.stringify(idx.getStats())}`);
+      log('index-log', lines.join('\n'));
+    }
+
+    function runBenchmark() {
+      const idx = new CardFrame.QueryIndex();
+      // 准备 5000 张卡片
+      for (let i = 0; i < 5000; i++) {
+        idx.add({
+          id: `c${i}`,
+          type: ['text', 'task', 'image'][i % 3],
+          status: ['active', 'completed'][i % 2],
+          props: { tags: [['a','b','c'][i % 3]] }
+        });
+      }
+      // 索引查询
+      const t0 = performance.now();
+      for (let i = 0; i < 1000; i++) idx.queryByType('text');
+      const tIdx = performance.now() - t0;
+
+      // 全表扫描对比
+      const all = [];
+      for (let i = 0; i < 5000; i++) {
+        all.push({ id: `c${i}`, type: ['text', 'task', 'image'][i % 3], status: 'active', props: {} });
+      }
+      const t1 = performance.now();
+      for (let i = 0; i < 1000; i++) all.filter(c => c.type === 'text');
+      const tScan = performance.now() - t1;
+
+      log('index-log',
+        `性能对比 (5000 卡片, 1000 次查询):\n` +
+        `  索引查询: ${tIdx.toFixed(2)}ms\n` +
+        `  全表扫描: ${tScan.toFixed(2)}ms\n` +
+        `  性能提升: ${(tScan / tIdx).toFixed(1)}x`
+      );
+    }
+
+    function emitEvents() {
+      const card = document.querySelector('cf-shadow-card');
+      if (!card) {
+        log('shadow-log', '未找到 cf-shadow-card 元素');
+        return;
+      }
+      // 监听事件
+      card.on('card-clicked', (detail) => {
+        log('shadow-log', `[事件] card-clicked: ${JSON.stringify(detail)}`);
+      });
+      card.emit('card-clicked', { id: card.getAttribute('data-card-id') || 'demo', time: Date.now() });
+    }
+
+    // 演示 Shadow DOM 样式隔离（外部样式不会影响内部）
+    setTimeout(() => {
+      const outer = document.querySelectorAll('h3');
+      outer.forEach(h => { h.style.color = 'red'; });
+      // 注意：Shadow DOM 内部的 h3 不会被影响
+    }, 500);
+  </script>
+</body>
+</html>

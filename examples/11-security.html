@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>11 - 安全防护 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🛡️ 安全防护</h1>
+    <p>XSS 防护演示、安全的 URL 处理、CSP 兼容性说明</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>XSS 防护测试</h3>
+        <div class="form-group">
+          <label>输入内容（尝试注入脚本）：</label>
+          <textarea id="xssInput" placeholder="试试输入：<script>alert('xss')</script>">&lt;script&gt;alert('XSS攻击!')&lt;/script&gt;
+&lt;img src=x onerror=alert('xss')&gt;
+&lt;a href="javascript:alert('xss')"&gt;点击&lt;/a&gt;</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="testXSS()">测试 XSS 防护</button>
+        <p class="hint">脚本会被自动转义/移除</p>
+      </div>
+
+      <div class="section">
+        <h3>URL 安全处理</h3>
+        <div class="form-group">
+          <label>测试 URL：</label>
+          <input type="text" id="urlInput" value="javascript:alert('xss')">
+        </div>
+        <button class="btn btn-primary" onclick="testUrl()">测试 URL 安全</button>
+        <div id="urlResult" class="result-box"></div>
+      </div>
+
+      <div class="section">
+        <h3>HTML 清理</h3>
+        <div class="form-group">
+          <label>输入 HTML：</label>
+          <textarea id="htmlInput" placeholder="输入 HTML 内容">&lt;div onclick="alert('xss')"&gt;
+  &lt;p&gt;安全的段落&lt;/p&gt;
+  &lt;script&gt;alert('xss')&lt;/script&gt;
+  &lt;img src="test.jpg" onerror="alert('xss')"&gt;
+&lt;/div&gt;</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="testSanitize()">清理 HTML</button>
+        <div id="sanitizeResult" class="result-box"></div>
+      </div>
+
+      <div class="section">
+        <h3>安全特性</h3>
+        <ul class="security-list">
+          <li>✅ HTML 内容转义</li>
+          <li>✅ 危险标签过滤</li>
+          <li>✅ 危险属性移除</li>
+          <li>✅ URL 协议检查</li>
+          <li>✅ CSP 兼容设计</li>
+          <li>✅ 内联样式净化</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>CSP 说明</h3>
+        <p class="csp-text">
+          CardFrame 兼容 Content Security Policy，
+          不使用 eval、new Function 或内联事件处理。
+        </p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="🛡️ 安全防护演示">
+        <p>CardFrame 内置多层安全防护机制，保护应用免受 XSS 等攻击。</p>
+        <br>
+        <p><strong>安全特性：</strong></p>
+        <ul>
+          <li>🔒 <strong>HTML 净化</strong> - 移除危险标签和属性</li>
+          <li>🔗 <strong>URL 安全</strong> - 检查协议，阻止 javascript:</li>
+          <li>🎨 <strong>样式净化</strong> - 移除危险的 CSS 表达式</li>
+          <li>📜 <strong>CSP 兼容</strong> - 支持严格的内容安全策略</li>
+        </ul>
+        <br>
+        <p>在左侧面板尝试各种攻击测试！</p>
+      </cf-card>
+
+      <cf-card id="result-card" type="text" title="测试结果区">
+        <p>XSS 和安全测试结果将显示在这里。</p>
+      </cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+    });
+
+    function testXSS() {
+      const input = document.getElementById('xssInput').value;
+      
+      const resultCard = frame.getCardById 
+        ? frame.getCardById('result-card')
+        : frame.getAllCards().find(c => c.props.title === '测试结果区');
+
+      if (resultCard) {
+        frame.updateCard(resultCard.id, {
+          title: 'XSS 防护测试结果',
+          content: input
+        });
+      }
+
+      alert('XSS 测试完成！\n\n查看右侧「测试结果区」卡片，\n脚本标签已被安全处理，不会执行。');
+    }
+
+    function testUrl() {
+      const url = document.getElementById('urlInput').value;
+      const resultEl = document.getElementById('urlResult');
+
+      const isSafe = CardFrame.Utils ? CardFrame.Utils.isSafeUrl(url) : null;
+      const sanitized = CardFrame.Utils ? CardFrame.Utils.sanitizeUrl(url) : null;
+
+      let html = '';
+      html += '<p><strong>原始 URL：</strong></p>';
+      html += '<code>' + escapeHtml(url) + '</code>';
+      html += '<br><br>';
+      html += '<p><strong>是否安全：</strong>';
+      html += isSafe ? '<span class="safe-tag">安全</span>' : '<span class="unsafe-tag">不安全</span>';
+      html += '</p>';
+      
+      if (sanitized !== undefined && sanitized !== null) {
+        html += '<p><strong>净化后：</strong></p>';
+        html += '<code>' + escapeHtml(sanitized || '(空)') + '</code>';
+      }
+
+      resultEl.innerHTML = html;
+    }
+
+    function testSanitize() {
+      const input = document.getElementById('htmlInput').value;
+      const resultEl = document.getElementById('sanitizeResult');
+
+      const sanitized = CardFrame.Utils && CardFrame.Utils.sanitizeHtml
+        ? CardFrame.Utils.sanitizeHtml(input)
+        : escapeHtml(input);
+
+      let html = '';
+      html += '<p><strong>净化结果：</strong></p>';
+      html += '<pre class="code-preview">' + escapeHtml(sanitized) + '</pre>';
+      html += '<p><strong>渲染效果：</strong></p>';
+      html += '<div class="render-preview">' + sanitized + '</div>';
+
+      resultEl.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 340px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .result-box {
+      margin-top: 12px;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .result-box code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .safe-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .unsafe-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #ffebee;
+      color: #c62828;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .code-preview {
+      background: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      overflow-x: auto;
+      margin: 8px 0;
+      border: 1px solid #ddd;
+    }
+
+    .render-preview {
+      background: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      margin-top: 8px;
+      min-height: 40px;
+    }
+
+    .security-list {
+      list-style: none;
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .csp-text {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</body>
+</html>

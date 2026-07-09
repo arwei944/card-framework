@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文档搜索 - CardFrame</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #1a1a1a;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .search-box {
+      position: relative;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      outline: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      background: white;
+    }
+
+    #searchInput:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-stats {
+      text-align: center;
+      margin-top: 15px;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .results-container {
+      margin-top: 40px;
+    }
+
+    .result-item {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .result-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+
+    .result-doc {
+      font-size: 13px;
+      color: #3b82f6;
+      margin-bottom: 12px;
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 6px;
+    }
+
+    .result-summary {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .highlight {
+      background: #fef08a;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .no-results-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #3b82f6;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .doc-list {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .doc-link {
+      padding: 8px 16px;
+      background: white;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #555;
+      font-size: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    .doc-link:hover {
+      background: #3b82f6;
+      color: white;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 15px;
+      }
+
+      h1 {
+        font-size: 1.5em;
+      }
+
+      .result-item {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="getting-started.md" class="back-link">← 返回文档</a>
+    
+    <header>
+      <h1>📚 文档搜索</h1>
+      <p class="subtitle">在 CardFrame 文档中搜索关键词</p>
+      
+      <div class="search-box">
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="输入搜索关键词，如：主题、插件、卡片、安全..."
+          autocomplete="off"
+        >
+      </div>
+      
+      <div class="search-stats" id="searchStats"></div>
+      
+      <div class="doc-list">
+        <a href="getting-started.md" class="doc-link">快速开始</a>
+        <a href="api-reference.md" class="doc-link">API 参考</a>
+        <a href="plugin-development.md" class="doc-link">插件开发</a>
+        <a href="agent-guide.md" class="doc-link">Agent 指南</a>
+      </div>
+    </header>
+
+    <div class="results-container" id="resultsContainer">
+      <div class="no-results" id="initialState">
+        <div class="no-results-icon">🔍</div>
+        <p>输入关键词开始搜索</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DOC_FILES = [
+      { file: 'getting-started.md', title: '快速开始指南' },
+      { file: 'api-reference.md', title: 'API 参考手册' },
+      { file: 'plugin-development.md', title: '插件开发指南' },
+      { file: 'agent-guide.md', title: 'Agent 操作指南' }
+    ];
+
+    let docsIndex = [];
+    let isLoading = true;
+
+    const searchInput = document.getElementById('searchInput');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const searchStats = document.getElementById('searchStats');
+    const initialState = document.getElementById('initialState');
+
+    async function loadDocs() {
+      showLoading();
+      
+      for (const docInfo of DOC_FILES) {
+        try {
+          const response = await fetch(docInfo.file);
+          if (response.ok) {
+            const content = await response.text();
+            docsIndex.push({
+              file: docInfo.file,
+              title: docInfo.title,
+              content: content
+            });
+          }
+        } catch (e) {
+          console.error(`加载文档失败: ${docInfo.file}`, e);
+        }
+      }
+      
+      isLoading = false;
+      searchStats.textContent = `已索引 ${docsIndex.length} 份文档`;
+    }
+
+    function showLoading() {
+      resultsContainer.innerHTML = `
+        <div class="loading">
+          <span class="spinner"></span>
+          <span>正在加载文档...</span>
+        </div>
+      `;
+    }
+
+    function highlightText(text, keyword) {
+      if (!keyword) return text;
+      const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<span class="highlight">$1</span>');
+    }
+
+    function extractSummary(content, keyword, maxLength = 200) {
+      const lowerContent = content.toLowerCase();
+      const lowerKeyword = keyword.toLowerCase();
+      const index = lowerContent.indexOf(lowerKeyword);
+      
+      if (index === -1) {
+        return content.slice(0, maxLength) + '...';
+      }
+
+      const start = Math.max(0, index - 80);
+      const end = Math.min(content.length, index + keyword.length + 120);
+      
+      let summary = content.slice(start, end);
+      
+      if (start > 0) summary = '...' + summary;
+      if (end < content.length) summary = summary + '...';
+      
+      return summary;
+    }
+
+    function search(keyword) {
+      if (!keyword.trim()) {
+        resultsContainer.innerHTML = `
+          <div class="no-results" id="initialState">
+            <div class="no-results-icon">🔍</div>
+            <p>输入关键词开始搜索</p>
+          </div>
+        `;
+        searchStats.textContent = isLoading ? '正在加载文档...' : `已索引 ${docsIndex.length} 份文档`;
+        return;
+      }
+
+      const results = [];
+      const lowerKeyword = keyword.toLowerCase();
+
+      for (const doc of docsIndex) {
+        const lowerContent = doc.content.toLowerCase();
+        
+        const titleMatch = doc.title.toLowerCase().includes(lowerKeyword);
+        
+        const lines = doc.content.split('\n');
+        const matchingHeadings = [];
+        let currentHeading = '';
+        
+        for (const line of lines) {
+          if (line.startsWith('#')) {
+            currentHeading = line.replace(/^#+\s*/, '').trim();
+          }
+          if (line.toLowerCase().includes(lowerKeyword)) {
+            if (currentHeading && !matchingHeadings.includes(currentHeading)) {
+              matchingHeadings.push(currentHeading);
+            }
+          }
+        }
+
+        if (lowerContent.includes(lowerKeyword)) {
+          const contentMatchCount = (lowerContent.match(new RegExp(lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+          
+          results.push({
+            file: doc.file,
+            title: doc.title,
+            summary: extractSummary(doc.content, keyword),
+            matchCount: contentMatchCount,
+            titleMatch: titleMatch,
+            headings: matchingHeadings.slice(0, 3)
+          });
+        }
+      }
+
+      results.sort((a, b) => {
+        if (a.titleMatch && !b.titleMatch) return -1;
+        if (!a.titleMatch && b.titleMatch) return 1;
+        return b.matchCount - a.matchCount;
+      });
+
+      renderResults(results, keyword);
+    }
+
+    function renderResults(results, keyword) {
+      searchStats.textContent = `找到 ${results.length} 个结果`;
+
+      if (results.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="no-results">
+            <div class="no-results-icon">😕</div>
+            <p>未找到与 "${keyword}" 相关的结果</p>
+            <p style="margin-top: 10px; font-size: 14px; color: #999;">
+              尝试使用其他关键词或查看文档列表
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      resultsContainer.innerHTML = results.map(result => {
+        const highlightedTitle = highlightText(result.title, keyword);
+        const highlightedSummary = highlightText(result.summary, keyword);
+        const highlightedHeadings = result.headings.map(h => 
+          `<span class="result-doc" style="margin-right: 8px; margin-bottom: 4px;">${highlightText(h, keyword)}</span>`
+        ).join('');
+
+        return `
+          <a href="${result.file}" style="text-decoration: none; color: inherit;">
+            <div class="result-item">
+              <div class="result-title">${highlightedTitle}</div>
+              <div class="result-doc">${result.file}</div>
+              ${result.headings.length > 0 ? `<div style="margin-bottom: 10px;">${highlightedHeadings}</div>` : ''}
+              <div class="result-summary">${highlightedSummary}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+    }
+
+    let debounceTimer = null;
+    searchInput.addEventListener('input', function(e) {
+      const keyword = e.target.value;
+      
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        search(keyword);
+      }, 200);
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        search('');
+        searchInput.focus();
+      }
+    });
+
+    loadDocs();
+  </script>
+</body>
+</html>

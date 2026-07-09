@@ -1,0 +1,448 @@
+/**
+ * MindCanvas Plugin Styles
+ * MindCanvas 项目专用样式
+ * @version 1.0.0
+ */
+
+/* ===== MindCanvas 布局 ===== */
+.mc-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.mc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.mc-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cf-text-primary, #0a0a0a);
+  margin: 0;
+}
+
+.mc-header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.mc-btn-primary {
+  padding: 0.5rem 1rem;
+  background: var(--cf-primary, #171717);
+  color: #fff;
+  border: none;
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.mc-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.mc-btn-ghost {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--cf-text-secondary, #6e6e6e);
+  border: 1px solid var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mc-btn-ghost:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+/* ===== 卡片网格 ===== */
+.mc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .mc-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== AI 管家 ===== */
+.cf-ai-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cf-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+  padding: 0.5rem;
+}
+
+.cf-chat-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--cf-border, #e5e5e5);
+  flex-wrap: wrap;
+}
+
+.cf-chat-input-wrap {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--cf-border, #e5e5e5);
+}
+
+.cf-chat-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  outline: none;
+  background: var(--cf-bg-100, #fff);
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-chat-input:focus {
+  border-color: var(--cf-primary, #171717);
+}
+
+.cf-chat-send {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--cf-primary, #171717);
+  color: #fff;
+  border-radius: var(--cf-radius, 0.5rem);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+.cf-chat-send:hover {
+  opacity: 0.9;
+}
+
+/* ===== 知识库统计 ===== */
+.cf-kb-stats {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cf-border, #e5e5e5);
+}
+
+.cf-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cf-stat-num {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-stat-label {
+  font-size: 0.75rem;
+  color: var(--cf-text-tertiary, #a0a0a0);
+}
+
+/* ===== 能力库 ===== */
+.cf-ability-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--cf-border, #e5e5e5);
+}
+
+.cf-score-num {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--cf-primary, #171717);
+  line-height: 1;
+}
+
+.cf-score-label {
+  font-size: 0.875rem;
+  color: var(--cf-text-secondary, #6e6e6e);
+  margin-top: 0.25rem;
+}
+
+.cf-dimensions {
+  padding: 0.5rem 0;
+}
+
+/* ===== 知识地图 ===== */
+.cf-knowledge-map {
+  padding: 0.75rem;
+}
+
+.cf-map-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--cf-text-secondary, #6e6e6e);
+  margin-bottom: 0.75rem;
+}
+
+.cf-map-meta {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--cf-text-tertiary, #a0a0a0);
+}
+
+.cf-map-svg svg {
+  border-radius: var(--cf-radius, 0.5rem);
+}
+
+/* ===== 元能力 ===== */
+.cf-meta-ability {
+  padding: 0.5rem;
+}
+
+.cf-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  transition: background 0.15s ease;
+}
+
+.cf-meta-item:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.cf-meta-icon {
+  font-size: 1rem;
+}
+
+.cf-meta-name {
+  font-size: 0.875rem;
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+/* ===== 专注模式 ===== */
+.cf-focus-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+}
+
+.cf-focus-status {
+  font-size: 0.875rem;
+  color: var(--cf-text-secondary, #6e6e6e);
+  margin-bottom: 0.5rem;
+}
+
+.cf-focus-timer {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--cf-text-primary, #0a0a0a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.cf-focus-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cf-focus-btn {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--cf-border, #e5e5e5);
+  background: var(--cf-bg-100, #fff);
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--cf-text-primary, #0a0a0a);
+  transition: all 0.15s ease;
+}
+
+.cf-focus-btn:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.cf-focus-btn:first-child {
+  background: var(--cf-primary, #171717);
+  color: #fff;
+  border-color: var(--cf-primary, #171717);
+}
+
+.cf-focus-btn:first-child:hover {
+  opacity: 0.9;
+}
+
+/* ===== 笔记 ===== */
+.cf-notes {
+  padding: 0.75rem;
+}
+
+.cf-notes-area {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem;
+  border: 1px solid var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  background: var(--cf-bg-100, #fff);
+  color: var(--cf-text-primary, #0a0a0a);
+  font-family: inherit;
+}
+
+.cf-notes-area:focus {
+  border-color: var(--cf-primary, #171717);
+}
+
+.cf-notes-meta {
+  font-size: 0.75rem;
+  color: var(--cf-text-tertiary, #a0a0a0);
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+/* ===== 日历 ===== */
+.cf-calendar {
+  padding: 0.75rem;
+}
+
+.cf-cal-header {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cf-text-primary, #0a0a0a);
+  margin-bottom: 0.75rem;
+}
+
+.cf-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.cf-cal-weekdays span {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--cf-text-tertiary, #a0a0a0);
+  padding: 0.25rem;
+}
+
+.cf-cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.cf-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-cal-day:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.cf-cal-today {
+  background: var(--cf-primary, #171717);
+  color: #fff;
+}
+
+.cf-cal-today:hover {
+  opacity: 0.9;
+}
+
+.cf-cal-empty {
+  pointer-events: none;
+}
+
+/* ===== 添加卡片按钮 ===== */
+.mc-add-card-wrap {
+  position: relative;
+}
+
+.mc-add-card-btn {
+  padding: 0.5rem 1rem;
+  background: var(--cf-bg-200, #f5f5f5);
+  color: var(--cf-text-secondary, #6e6e6e);
+  border: 1px dashed var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.mc-add-card-btn:hover {
+  background: var(--cf-bg-300, #ebebeb);
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.mc-add-card-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 200px;
+  background: var(--cf-card-bg, #fff);
+  border: 1px solid var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  padding: 0.5rem 0;
+  display: none;
+}
+
+.mc-add-card-menu.active {
+  display: block;
+}
+
+.mc-add-card-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--cf-text-primary, #0a0a0a);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mc-add-card-item:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.mc-add-card-icon {
+  font-size: 1.125rem;
+  width: 24px;
+  text-align: center;
+}

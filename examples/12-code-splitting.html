@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>代码分割与按需加载 - Card Framework</title>
+  <link rel="stylesheet" href="../dist/card-framework.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .demo-section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .demo-section h2 {
+      margin-top: 0;
+      color: #3b82f6;
+    }
+    .controls {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #6b7280;
+    }
+    button.secondary:hover {
+      background: #4b5563;
+    }
+    button.success {
+      background: #22c55e;
+    }
+    button.success:hover {
+      background: #16a34a;
+    }
+    .status {
+      padding: 10px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .status.error {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .card-frame {
+      min-height: 300px;
+      border: 2px dashed #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      background: #fafafa;
+    }
+    .module-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .module-item {
+      padding: 12px;
+      border-radius: 6px;
+      background: #f3f4f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .module-item.loaded {
+      background: #dcfce7;
+    }
+    .module-item .name {
+      font-weight: 600;
+    }
+    .module-item .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9ca3af;
+    }
+    .module-item.loaded .status-dot {
+      background: #22c55e;
+    }
+    .code-block {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+    .code-block .comment { color: #6b7280; }
+    .code-block .keyword { color: #c084fc; }
+    .code-block .string { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1>代码分割与按需加载演示</h1>
+    
+    <div class="demo-section">
+      <h2>📦 模块状态</h2>
+      <div class="module-list" id="moduleList">
+      </div>
+      <div class="controls">
+        <button onclick="loadModule('render')">加载渲染模块</button>
+        <button onclick="loadModule('validation')">加载验证模块</button>
+        <button onclick="loadModule('security')">加载安全模块</button>
+        <button onclick="loadModule('extras')">加载扩展模块</button>
+        <button onclick="loadModule('plugins')">加载插件模块</button>
+        <button onclick="loadModule('perf')">加载性能模块</button>
+        <button class="secondary" onclick="preloadAll()">预加载所有模块</button>
+      </div>
+      <div class="status" id="status">点击按钮加载相应模块</div>
+    </div>
+    
+    <div class="demo-section">
+      <h2>🎯 使用方式</h2>
+      
+      <h3>方式一：使用完整打包版（推荐入门使用）</h3>
+      <div class="code-block">
+<span class="comment">&lt;!-- 直接引入完整版本 --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"dist/card-framework.js"</span><span class="keyword">&gt;&lt;/script&gt;</span>
+<span class="keyword">&lt;link</span> <span class="string">rel</span>=<span class="string">"stylesheet"</span> <span class="string">href</span>=<span class="string">"dist/card-framework.css"</span><span class="keyword">&gt;</span>
+
+<span class="comment">// 使用方式不变</span>
+<span class="keyword">const</span> frame = <span class="keyword">new</span> <span class="string">CardFrame</span>(<span class="string">'#container'</span>);
+      </div>
+      
+      <h3>方式二：按需加载（生产环境优化）</h3>
+      <div class="code-block">
+<span class="comment">&lt;!-- 先加载核心模块和加载器 --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"dist/core.js"</span><span class="keyword">&gt;&lt;/script&gt;</span>
+<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"dist/loader.js"</span><span class="keyword">&gt;&lt;/script&gt;</span>
+<span class="keyword">&lt;link</span> <span class="string">rel</span>=<span class="string">"stylesheet"</span> <span class="string">href</span>=<span class="string">"dist/card-framework.css"</span><span class="keyword">&gt;</span>
+
+<span class="comment">// 按需加载需要的模块</span>
+<span class="keyword">async function</span> <span class="string">initApp</span>() {
+  <span class="comment">// 加载渲染模块（自动处理依赖）</span>
+  <span class="keyword">await</span> <span class="string">CardFrame</span>.<span class="string">load</span>(<span class="string">'render'</span>);
+  
+  <span class="comment">// 加载验证模块</span>
+  <span class="keyword">await</span> <span class="string">CardFrame</span>.<span class="string">load</span>(<span class="string">'validation'</span>);
+  
+  <span class="comment">// 创建框架实例</span>
+  <span class="keyword">const</span> frame = <span class="keyword">new</span> <span class="string">CardFrame</span>(<span class="string">'#container'</span>);
+}
+      </div>
+    </div>
+    
+    <div class="demo-section">
+      <h2>🃏 核心模块演示（仅核心功能）</h2>
+      <div class="controls">
+        <button onclick="addTextCard()">添加文本卡片</button>
+        <button onclick="addTaskCard()">添加任务卡片</button>
+        <button onclick="clearCards()">清空卡片</button>
+      </div>
+      <div class="card-frame" id="coreDemo">
+        <p style="color: #9ca3af; text-align: center;">核心模块已加载，卡片数据可管理，但需要 render 模块才能渲染</p>
+      </div>
+    </div>
+    
+    <div class="demo-section">
+      <h2>🎨 渲染模块演示</h2>
+      <p>加载 render 模块后，卡片将被渲染到页面上。</p>
+      <div class="controls">
+        <button class="success" onclick="initRenderDemo()">初始化渲染演示</button>
+        <button onclick="switchLayout()">切换布局模式</button>
+      </div>
+      <div class="card-frame" id="renderDemo" style="display: none;"></div>
+    </div>
+    
+    <div class="demo-section">
+      <h2>🔐 安全模块演示</h2>
+      <p>加载 security 模块后，将启用 XSS 防护和熔断器功能。</p>
+      <div class="controls">
+        <button onclick="testSecurity()">测试安全功能</button>
+        <button onclick="testCircuitBreaker()">测试熔断器</button>
+      </div>
+      <div class="status" id="securityStatus">等待加载安全模块...</div>
+    </div>
+    
+    <div class="demo-section">
+      <h2>📊 模块依赖关系</h2>
+      <ul>
+        <li><strong>core</strong> - 核心模块（必选）：Store, Utils, EventBus, TypeRegistry, FeedbackSystem</li>
+        <li><strong>render</strong> - 渲染模块（依赖 core）：Renderer, LayoutEngine</li>
+        <li><strong>validation</strong> - 验证模块（依赖 core）：RealTimeValidator, AutoFixer</li>
+        <li><strong>security</strong> - 安全模块（依赖 core）：Security, CircuitBreaker</li>
+        <li><strong>extras</strong> - 扩展模块（依赖 core, render）：ThemeManager, I18nManager, RelationshipEngine</li>
+        <li><strong>plugins</strong> - 插件模块（依赖 core）：PluginManager</li>
+        <li><strong>perf</strong> - 性能模块（依赖 core, render）：Perf, VirtualScroller</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="../dist/core.js"></script>
+  <script src="../dist/loader.js"></script>
+  <script>
+    const MODULES = [
+      { name: 'core', label: '核心模块', desc: 'Store, Utils, EventBus' },
+      { name: 'render', label: '渲染模块', desc: 'Renderer, LayoutEngine' },
+      { name: 'validation', label: '验证模块', desc: 'Validator, AutoFixer' },
+      { name: 'security', label: '安全模块', desc: 'Security, CircuitBreaker' },
+      { name: 'extras', label: '扩展模块', desc: 'Theme, I18n, Relationship' },
+      { name: 'plugins', label: '插件模块', desc: 'PluginManager' },
+      { name: 'perf', label: '性能模块', desc: 'Perf, VirtualScroller' }
+    ];
+    
+    let coreFrame = null;
+    let renderFrame = null;
+    
+    function updateModuleList() {
+      const list = document.getElementById('moduleList');
+      list.innerHTML = MODULES.map(m => `
+        <div class="module-item ${CardFrame.isModuleLoaded(m.name) ? 'loaded' : ''}">
+          <div>
+            <div class="name">${m.label}</div>
+            <div style="font-size: 12px; color: #6b7280;">${m.desc}</div>
+          </div>
+          <div class="status-dot" title="${CardFrame.isModuleLoaded(m.name) ? '已加载' : '未加载'}"></div>
+        </div>
+      `).join('');
+    }
+    
+    function setStatus(message, isError = false) {
+      const el = document.getElementById('status');
+      el.textContent = message;
+      el.className = 'status' + (isError ? ' error' : '');
+    }
+    
+    async function loadModule(name) {
+      setStatus(`正在加载 ${name} 模块...`);
+      try {
+        const startTime = Date.now();
+        await CardFrame.load(name);
+        const duration = Date.now() - startTime;
+        setStatus(`✓ ${name} 模块加载成功，耗时 ${duration}ms`);
+        updateModuleList();
+      } catch (e) {
+        setStatus(`✗ 加载失败: ${e.message}`, true);
+      }
+    }
+    
+    async function preloadAll() {
+      setStatus('正在预加载所有模块...');
+      try {
+        const startTime = Date.now();
+        const modules = ['render', 'validation', 'security', 'extras', 'plugins', 'perf'];
+        await Promise.all(modules.map(m => CardFrame.load(m)));
+        const duration = Date.now() - startTime;
+        setStatus(`✓ 所有模块加载完成，耗时 ${duration}ms`);
+        updateModuleList();
+      } catch (e) {
+        setStatus(`✗ 预加载失败: ${e.message}`, true);
+      }
+    }
+    
+    function initCoreDemo() {
+      coreFrame = new CardFrame('#coreDemo');
+      updateModuleList();
+      setStatus('核心模块已就绪，可以管理卡片数据');
+    }
+    
+    function addTextCard() {
+      if (!coreFrame) initCoreDemo();
+      const card = coreFrame.createCard('text', {
+        title: '文本卡片 ' + (coreFrame.getAllCards().length + 1),
+        content: '这是一张文本卡片的内容'
+      });
+      setStatus(`已创建卡片: ${card.id}（数据已存储，需加载 render 模块才能显示）`);
+    }
+    
+    function addTaskCard() {
+      if (!coreFrame) initCoreDemo();
+      const card = coreFrame.createCard('task', {
+        title: '任务 ' + (coreFrame.getAllCards().length + 1),
+        priority: 'medium'
+      });
+      setStatus(`已创建任务卡片: ${card.id}`);
+    }
+    
+    function clearCards() {
+      if (!coreFrame) return;
+      const cards = coreFrame.getAllCards();
+      cards.forEach(c => coreFrame.removeCard(c.id));
+      setStatus('已清空所有卡片');
+    }
+    
+    async function initRenderDemo() {
+      await CardFrame.load('render');
+      
+      document.getElementById('renderDemo').style.display = 'block';
+      renderFrame = new CardFrame('#renderDemo');
+      
+      renderFrame.createCard('text', { title: '欢迎使用', content: '这是通过 render 模块渲染的卡片' });
+      renderFrame.createCard('task', { title: '学习代码分割', priority: 'high' });
+      renderFrame.createCard('image', { title: '示例图片', src: 'https://picsum.photos/300/200', alt: '示例' });
+      
+      setStatus('渲染模块已初始化，3 张卡片已渲染');
+      updateModuleList();
+    }
+    
+    function switchLayout() {
+      if (!renderFrame) return;
+      const current = renderFrame.getLayoutMode();
+      const next = current === 'stream' ? 'canvas' : 'stream';
+      renderFrame.setLayoutMode(next);
+      setStatus(`布局模式已切换为: ${next}`);
+    }
+    
+    async function testSecurity() {
+      await CardFrame.load('security');
+      
+      const dangerousHtml = '<script>alert("XSS")</script><p>安全内容</p><a href="javascript:alert(1)">危险链接</a>';
+      const safeHtml = CardFrame.Utils.sanitizeHtml(dangerousHtml);
+      
+      document.getElementById('securityStatus').innerHTML = 
+        `<strong>XSS 防护测试：</strong><br>` +
+        `输入: ${CardFrame.Utils.escapeHtml(dangerousHtml)}<br>` +
+        `输出: ${CardFrame.Utils.escapeHtml(safeHtml)}`;
+      
+      updateModuleList();
+    }
+    
+    async function testCircuitBreaker() {
+      await CardFrame.load('security');
+      
+      const cb = new CardFrame.CircuitBreaker({ cardFailureThreshold: 3, windowMs: 60000 });
+      
+      let failCount = 0;
+      for (let i = 0; i < 5; i++) {
+        try {
+          cb.execute(() => {
+            failCount++;
+            throw new Error('模拟错误');
+          }, 'test-card');
+        } catch (e) {
+          // 预期错误
+        }
+      }
+      
+      const state = cb.getCardState('test-card');
+      const globalState = cb.getGlobalState();
+      
+      document.getElementById('securityStatus').innerHTML = 
+        `<strong>熔断器测试：</strong><br>` +
+        `失败次数: ${failCount}<br>` +
+        `卡片熔断状态: ${state}<br>` +
+        `全局熔断状态: ${globalState}`;
+      
+      updateModuleList();
+    }
+    
+    initCoreDemo();
+  </script>
+</body>
+</html>

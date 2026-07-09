@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CardFrame 插件系统演示 - 任务管理/知识库/仪表盘/思维导图</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🔌 CardFrame 插件系统演示</h1>
+    <p>任务管理 · 知识库 · 仪表盘 · 思维导图 - 四大业务插件示例</p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>📦 插件管理</h3>
+        <div class="plugin-status">
+          <div class="plugin-item">
+            <span class="plugin-name">task-manager</span>
+            <span class="plugin-badge" id="taskManagerStatus">未安装</span>
+          </div>
+          <div class="plugin-item">
+            <span class="plugin-name">knowledge-base</span>
+            <span class="plugin-badge" id="knowledgeBaseStatus">未安装</span>
+          </div>
+          <div class="plugin-item">
+            <span class="plugin-name">dashboard</span>
+            <span class="plugin-badge" id="dashboardStatus">未安装</span>
+          </div>
+          <div class="plugin-item">
+            <span class="plugin-name">mindcanvas</span>
+            <span class="plugin-badge" id="mindcanvasStatus">未安装</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="installAllPlugins()">一键安装全部</button>
+        <button class="btn btn-danger" onclick="uninstallAllPlugins()">一键卸载全部</button>
+      </div>
+
+      <div class="section">
+        <h3>✅ 任务管理插件</h3>
+        <div class="form-group">
+          <label>任务标题：</label>
+          <input type="text" id="taskTitle" placeholder="输入任务标题">
+        </div>
+        <div class="form-group">
+          <label>优先级：</label>
+          <select id="taskPriority">
+            <option value="high">高</option>
+            <option value="medium" selected>中</option>
+            <option value="low">低</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>截止日期：</label>
+          <input type="date" id="taskDueDate">
+        </div>
+        <button class="btn btn-primary" onclick="addTaskItem()">添加任务</button>
+        <div class="plugin-actions">
+          <button class="btn" onclick="completeAllTasks()">全部完成</button>
+          <button class="btn" onclick="clearCompletedTasks()">清除已完成</button>
+          <button class="btn" onclick="showTaskStats()">任务统计</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>📚 知识库插件</h3>
+        <div class="form-group">
+          <label>类型：</label>
+          <select id="kbType">
+            <option value="note">笔记</option>
+            <option value="article">文章</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>标题：</label>
+          <input type="text" id="kbTitle" placeholder="输入标题">
+        </div>
+        <div class="form-group">
+          <label>分类：</label>
+          <input type="text" id="kbCategory" placeholder="输入分类">
+        </div>
+        <div class="form-group">
+          <label>内容（支持简单 Markdown）：</label>
+          <textarea id="kbContent" placeholder="# 标题&#10;- 列表项1&#10;- 列表项2&#10;**粗体** *斜体*"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="addKnowledgeItem()">添加笔记/文章</button>
+        <div class="plugin-actions">
+          <button class="btn" onclick="searchNotes()">搜索</button>
+          <button class="btn" onclick="showCategoryStats()">分类统计</button>
+          <button class="btn" onclick="testMarkdown()">测试 Markdown</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>📊 仪表盘插件</h3>
+        <div class="form-group">
+          <label>统计卡片标题：</label>
+          <input type="text" id="statTitle" placeholder="统计标题" value="任务总数">
+        </div>
+        <div class="form-group">
+          <label>统计类型：</label>
+          <select id="statType">
+            <option value="totalTasks">总任务数</option>
+            <option value="completedTasks">已完成任务</option>
+            <option value="highPriorityTasks">高优先级任务</option>
+            <option value="totalNotes">笔记文章总数</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addStatCard()">添加统计卡片</button>
+        <button class="btn btn-primary" onclick="addChartCard()">添加图表卡片</button>
+        <div class="plugin-actions">
+          <button class="btn" onclick="refreshDashboard()">刷新仪表盘</button>
+          <button class="btn" onclick="showDashboardData()">仪表盘数据</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>🧠 思维导图插件</h3>
+        <div class="form-group">
+          <label>根节点标题：</label>
+          <input type="text" id="mindRootTitle" placeholder="输入思维导图标题" value="我的思维导图">
+        </div>
+        <div class="form-group">
+          <label>父节点ID：</label>
+          <input type="text" id="mindParentId" placeholder="输入父节点ID">
+        </div>
+        <div class="form-group">
+          <label>子节点标题：</label>
+          <input type="text" id="mindChildTitle" placeholder="输入子节点标题">
+        </div>
+        <button class="btn btn-primary" onclick="createMindMap()">创建思维导图</button>
+        <button class="btn btn-primary" onclick="addChildNode()">添加子节点</button>
+        <div class="plugin-actions">
+          <button class="btn" onclick="layoutMindMap()">自动布局</button>
+          <button class="btn" onclick="expandAllNodes()">全部展开</button>
+          <button class="btn" onclick="collapseAllNodes()">全部折叠</button>
+          <button class="btn" onclick="showMindMapStats()">统计信息</button>
+          <button class="btn" onclick="showMindMapRoots()">根节点列表</button>
+          <button class="btn" onclick="createDemoMindMap()">创建演示导图</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>⚙️ 布局模式</h3>
+        <button class="btn" onclick="setLayout('stream')">流式布局</button>
+        <button class="btn" onclick="setLayout('canvas')">画布模式</button>
+      </div>
+
+      <div class="section">
+        <h3>🗑️ 操作</h3>
+        <button class="btn btn-danger" onclick="clearAllCards()">清空所有卡片</button>
+        <button class="btn" onclick="exportData()">导出数据</button>
+      </div>
+
+      <div class="section">
+        <h3>📈 状态</h3>
+        <p>卡片总数：<span id="cardCount">0</span></p>
+        <p>已安装插件：<span id="pluginCount">0</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="👋 欢迎使用插件演示">
+        <p>这是 CardFrame 插件系统的演示页面。</p>
+        <br>
+        <p><strong>包含以下插件：</strong></p>
+        <ul>
+          <li>📌 <strong>task-manager</strong> - 任务管理插件</li>
+          <li>📝 <strong>knowledge-base</strong> - 知识库插件</li>
+          <li>📊 <strong>dashboard</strong> - 仪表盘插件</li>
+          <li>🧠 <strong>mindcanvas</strong> - 思维导图插件</li>
+        </ul>
+        <p>点击左侧「一键安装全部」按钮开始体验！</p>
+      </cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script src="../plugins/task-manager/index.js"></script>
+  <script src="../plugins/knowledge-base/index.js"></script>
+  <script src="../plugins/dashboard/index.js"></script>
+  <script src="../plugins/mindcanvas/index.js"></script>
+  <script>
+    let frame;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = new CardFrame('#cardContainer');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+
+      window.CardFrame._globalStore = frame.store;
+    });
+
+    function updateStats() {
+      if (frame) {
+        document.getElementById('cardCount').textContent = frame.getAllCards().length;
+        document.getElementById('pluginCount').textContent = frame.getAllPlugins().length;
+        updatePluginStatus();
+      }
+    }
+
+    function updatePluginStatus() {
+      if (!frame) return;
+
+      const plugins = frame.getAllPlugins();
+      const pluginMap = {};
+      plugins.forEach(p => {
+        pluginMap[p.name] = p;
+      });
+
+      const taskStatus = document.getElementById('taskManagerStatus');
+      if (pluginMap['task-manager']) {
+        taskStatus.textContent = '已启用';
+        taskStatus.className = 'plugin-badge enabled';
+      } else {
+        taskStatus.textContent = '未安装';
+        taskStatus.className = 'plugin-badge';
+      }
+
+      const kbStatus = document.getElementById('knowledgeBaseStatus');
+      if (pluginMap['knowledge-base']) {
+        kbStatus.textContent = '已启用';
+        kbStatus.className = 'plugin-badge enabled';
+      } else {
+        kbStatus.textContent = '未安装';
+        kbStatus.className = 'plugin-badge';
+      }
+
+      const dashStatus = document.getElementById('dashboardStatus');
+      if (pluginMap['dashboard']) {
+        dashStatus.textContent = '已启用';
+        dashStatus.className = 'plugin-badge enabled';
+      } else {
+        dashStatus.textContent = '未安装';
+        dashStatus.className = 'plugin-badge';
+      }
+
+      const mindStatus = document.getElementById('mindcanvasStatus');
+      if (pluginMap['mindcanvas']) {
+        mindStatus.textContent = '已启用';
+        mindStatus.className = 'plugin-badge enabled';
+      } else {
+        mindStatus.textContent = '未安装';
+        mindStatus.className = 'plugin-badge';
+      }
+    }
+
+    function installAllPlugins() {
+      try {
+        if (window.CardFramePlugins && window.CardFramePlugins['task-manager']) {
+          frame.installPlugin(window.CardFramePlugins['task-manager']);
+        }
+        if (window.CardFramePlugins && window.CardFramePlugins['knowledge-base']) {
+          frame.installPlugin(window.CardFramePlugins['knowledge-base']);
+        }
+        if (window.CardFramePlugins && window.CardFramePlugins['dashboard']) {
+          frame.installPlugin(window.CardFramePlugins['dashboard']);
+        }
+        if (window.CardFramePlugins && window.CardFramePlugins['mindcanvas']) {
+          frame.installPlugin(window.CardFramePlugins['mindcanvas']);
+        }
+
+        const dashboard = frame.getPlugin('dashboard');
+        if (dashboard) {
+          window.CardFrame._globalDashboard = dashboard;
+        }
+
+        const mindCanvas = frame.getPlugin('mindcanvas');
+        if (mindCanvas) {
+          window.CardFrame._globalMindCanvas = mindCanvas;
+        }
+
+        alert('所有插件安装成功！');
+        updateStats();
+      } catch (e) {
+        alert('安装失败：' + e.message);
+      }
+    }
+
+    function uninstallAllPlugins() {
+      if (!confirm('确定要卸载所有插件吗？')) return;
+
+      try {
+        if (frame.pluginManager.isInstalled('mindcanvas')) {
+          frame.uninstallPlugin('mindcanvas');
+        }
+        if (frame.pluginManager.isInstalled('dashboard')) {
+          frame.uninstallPlugin('dashboard');
+        }
+        if (frame.pluginManager.isInstalled('knowledge-base')) {
+          frame.uninstallPlugin('knowledge-base');
+        }
+        if (frame.pluginManager.isInstalled('task-manager')) {
+          frame.uninstallPlugin('task-manager');
+        }
+
+        alert('所有插件已卸载');
+        updateStats();
+      } catch (e) {
+        alert('卸载失败：' + e.message);
+      }
+    }
+
+    function addTaskItem() {
+      const title = document.getElementById('taskTitle').value.trim();
+      const priority = document.getElementById('taskPriority').value;
+      const dueDate = document.getElementById('taskDueDate').value;
+
+      if (!title) {
+        alert('请输入任务标题');
+        return;
+      }
+
+      if (!frame.pluginManager.isInstalled('task-manager')) {
+        alert('请先安装任务管理插件');
+        return;
+      }
+
+      const props = { title, priority };
+      if (dueDate) props.dueDate = dueDate;
+
+      frame.createCard('task-item', props);
+      document.getElementById('taskTitle').value = '';
+      document.getElementById('taskDueDate').value = '';
+    }
+
+    function completeAllTasks() {
+      const taskManager = frame.getPlugin('task-manager');
+      if (!taskManager) {
+        alert('请先安装任务管理插件');
+        return;
+      }
+
+      const count = taskManager.completeAll();
+      alert('已完成 ' + count + ' 个任务');
+    }
+
+    function clearCompletedTasks() {
+      const taskManager = frame.getPlugin('task-manager');
+      if (!taskManager) {
+        alert('请先安装任务管理插件');
+        return;
+      }
+
+      const count = taskManager.clearCompleted();
+      alert('已清除 ' + count + ' 个已完成任务');
+    }
+
+    function showTaskStats() {
+      const taskManager = frame.getPlugin('task-manager');
+      if (!taskManager) {
+        alert('请先安装任务管理插件');
+        return;
+      }
+
+      const stats = taskManager.getTaskStats();
+      alert(
+        '任务统计：\n' +
+        '总任务数：' + stats.total + '\n' +
+        '已完成：' + stats.completed + '\n' +
+        '高优先级：' + stats.highPriority + '\n' +
+        '已逾期：' + stats.overdue
+      );
+    }
+
+    function addKnowledgeItem() {
+      const type = document.getElementById('kbType').value;
+      const title = document.getElementById('kbTitle').value.trim();
+      const category = document.getElementById('kbCategory').value.trim();
+      const content = document.getElementById('kbContent').value;
+
+      if (!title) {
+        alert('请输入标题');
+        return;
+      }
+
+      if (!frame.pluginManager.isInstalled('knowledge-base')) {
+        alert('请先安装知识库插件');
+        return;
+      }
+
+      const props = { title, content };
+      if (category) props.category = category;
+
+      frame.createCard(type, props);
+      document.getElementById('kbTitle').value = '';
+      document.getElementById('kbCategory').value = '';
+      document.getElementById('kbContent').value = '';
+    }
+
+    function searchNotes() {
+      const knowledgeBase = frame.getPlugin('knowledge-base');
+      if (!knowledgeBase) {
+        alert('请先安装知识库插件');
+        return;
+      }
+
+      const keyword = prompt('请输入搜索关键词：');
+      if (!keyword) return;
+
+      const results = knowledgeBase.searchNotes(keyword);
+      alert('找到 ' + results.length + ' 条结果，请查看控制台');
+      console.log('搜索结果:', results);
+    }
+
+    function showCategoryStats() {
+      const knowledgeBase = frame.getPlugin('knowledge-base');
+      if (!knowledgeBase) {
+        alert('请先安装知识库插件');
+        return;
+      }
+
+      const stats = knowledgeBase.getCategoryStats();
+      let message = '分类统计：\n\n';
+      for (const category in stats) {
+        message += category + ': ' + stats[category].total + ' 个（笔记: ' + stats[category].note + ', 文章: ' + stats[category].article + '）\n';
+      }
+      alert(message);
+    }
+
+    function testMarkdown() {
+      const knowledgeBase = frame.getPlugin('knowledge-base');
+      if (!knowledgeBase) {
+        alert('请先安装知识库插件');
+        return;
+      }
+
+      const markdown = '# 标题一\n## 标题二\n### 标题三\n\n这是一段普通文本。\n\n**粗体文字** 和 *斜体文字*\n\n- 列表项 1\n- 列表项 2\n- 列表项 3\n\n1. 有序项 1\n2. 有序项 2';
+
+      const html = knowledgeBase.renderMarkdown(markdown);
+      console.log('Markdown 渲染结果:', html);
+      alert('Markdown 渲染测试完成，请查看控制台');
+    }
+
+    function addStatCard() {
+      const title = document.getElementById('statTitle').value.trim();
+      const statType = document.getElementById('statType').value;
+
+      if (!title) {
+        alert('请输入统计卡片标题');
+        return;
+      }
+
+      if (!frame.pluginManager.isInstalled('dashboard')) {
+        alert('请先安装仪表盘插件');
+        return;
+      }
+
+      const dashboard = frame.getPlugin('dashboard');
+      const card = frame.createCard('stat-card', {
+        title,
+        value: 0,
+        trend: 'neutral',
+        changePercent: '',
+        statType
+      });
+
+      if (dashboard) {
+        dashboard.refreshStats();
+      }
+    }
+
+    function addChartCard() {
+      if (!frame.pluginManager.isInstalled('dashboard')) {
+        alert('请先安装仪表盘插件');
+        return;
+      }
+
+      const data = [
+        { label: '一月', value: 65 },
+        { label: '二月', value: 59 },
+        { label: '三月', value: 80 },
+        { label: '四月', value: 81 },
+        { label: '五月', value: 56 },
+        { label: '六月', value: 95 }
+      ];
+
+      frame.createCard('chart-card', {
+        title: '月度数据统计',
+        data: JSON.stringify(data),
+        chartType: 'bar'
+      });
+    }
+
+    function refreshDashboard() {
+      const dashboard = frame.getPlugin('dashboard');
+      if (!dashboard) {
+        alert('请先安装仪表盘插件');
+        return;
+      }
+
+      dashboard.refreshStats();
+      alert('仪表盘已刷新');
+    }
+
+    function showDashboardData() {
+      const dashboard = frame.getPlugin('dashboard');
+      if (!dashboard) {
+        alert('请先安装仪表盘插件');
+        return;
+      }
+
+      const data = dashboard.getDashboardData();
+      alert('仪表盘数据已输出到控制台');
+      console.log('仪表盘数据:', data);
+    }
+
+    function setLayout(mode) {
+      frame.setLayoutMode(mode);
+    }
+
+    function clearAllCards() {
+      if (!confirm('确定要清空所有卡片吗？')) return;
+
+      const cards = frame.getAllCards();
+      cards.forEach(card => {
+        frame.removeCard(card.id);
+      });
+    }
+
+    function exportData() {
+      const data = frame.store.toJSON();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plugins-demo-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function createMindMap() {
+      const title = document.getElementById('mindRootTitle').value.trim();
+      if (!title) {
+        alert('请输入思维导图标题');
+        return;
+      }
+
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const root = mindCanvas.createMindMap(title);
+      document.getElementById('mindParentId').value = root.id;
+      alert('思维导图创建成功！根节点ID: ' + root.id);
+    }
+
+    function addChildNode() {
+      const parentId = document.getElementById('mindParentId').value.trim();
+      const title = document.getElementById('mindChildTitle').value.trim();
+
+      if (!parentId) {
+        alert('请输入父节点ID');
+        return;
+      }
+      if (!title) {
+        alert('请输入子节点标题');
+        return;
+      }
+
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const child = mindCanvas.addChildNode(parentId, title);
+      if (child) {
+        document.getElementById('mindChildTitle').value = '';
+        alert('子节点添加成功！节点ID: ' + child.id);
+      } else {
+        alert('添加失败，请检查父节点ID是否正确');
+      }
+    }
+
+    function layoutMindMap() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const roots = mindCanvas.getMindMapRoots();
+
+      if (roots.length === 0) {
+        alert('没有找到思维导图根节点');
+        return;
+      }
+
+      frame.setLayoutMode('canvas');
+
+      let totalNodes = 0;
+      roots.forEach((root, index) => {
+        const result = mindCanvas.layoutMindMap(root.id, {
+          startX: 100,
+          startY: 100 + index * 400
+        });
+        if (result) {
+          totalNodes += result.nodeCount;
+        }
+      });
+
+      alert('布局完成，共布局 ' + totalNodes + ' 个节点');
+    }
+
+    function expandAllNodes() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const roots = mindCanvas.getMindMapRoots();
+
+      if (roots.length === 0) {
+        alert('没有找到思维导图根节点');
+        return;
+      }
+
+      let total = 0;
+      roots.forEach(root => {
+        total += mindCanvas.expandAll(root.id);
+      });
+
+      alert('已展开 ' + total + ' 个节点');
+    }
+
+    function collapseAllNodes() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const roots = mindCanvas.getMindMapRoots();
+
+      if (roots.length === 0) {
+        alert('没有找到思维导图根节点');
+        return;
+      }
+
+      let total = 0;
+      roots.forEach(root => {
+        total += mindCanvas.collapseAll(root.id);
+      });
+
+      alert('已折叠 ' + total + ' 个节点');
+    }
+
+    function showMindMapStats() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const roots = mindCanvas.getMindMapRoots();
+
+      if (roots.length === 0) {
+        alert('没有找到思维导图根节点');
+        return;
+      }
+
+      let message = '思维导图统计：\n\n';
+      roots.forEach((root, index) => {
+        const stats = mindCanvas.getMindMapStats(root.id);
+        if (stats) {
+          message += `导图 ${index + 1}: ${stats.rootTitle}\n`;
+          message += `  总节点数: ${stats.totalNodes}\n`;
+          message += `  最大层级: ${stats.maxLevel}\n`;
+          message += `  叶子节点数: ${stats.leafNodes}\n\n`;
+        }
+      });
+
+      alert(message);
+    }
+
+    function showMindMapRoots() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+      const roots = mindCanvas.getMindMapRoots();
+
+      if (roots.length === 0) {
+        alert('没有找到思维导图根节点');
+        return;
+      }
+
+      let message = '思维导图根节点列表：\n\n';
+      roots.forEach((root, index) => {
+        message += `${index + 1}. ${root.props.title} (ID: ${root.id})\n`;
+      });
+
+      alert(message);
+      console.log('根节点详情:', roots);
+    }
+
+    function createDemoMindMap() {
+      if (!frame.pluginManager.isInstalled('mindcanvas')) {
+        alert('请先安装思维导图插件');
+        return;
+      }
+
+      const mindCanvas = frame.getPlugin('mindcanvas');
+
+      const root = mindCanvas.createMindMap('产品规划');
+      const rootId = root.id;
+
+      const child1 = mindCanvas.addChildNode(rootId, '功能需求');
+      const child2 = mindCanvas.addChildNode(rootId, '技术架构');
+      const child3 = mindCanvas.addChildNode(rootId, '项目管理');
+
+      mindCanvas.addChildNode(child1.id, '用户管理');
+      mindCanvas.addChildNode(child1.id, '权限控制');
+      mindCanvas.addChildNode(child1.id, '数据报表');
+
+      mindCanvas.addChildNode(child2.id, '前端技术');
+      mindCanvas.addChildNode(child2.id, '后端服务');
+      mindCanvas.addChildNode(child2.id, '数据库设计');
+
+      mindCanvas.addChildNode(child3.id, '里程碑');
+      mindCanvas.addChildNode(child3.id, '团队分工');
+      mindCanvas.addChildNode(child3.id, '风险评估');
+
+      frame.setLayoutMode('canvas');
+      mindCanvas.layoutMindMap(rootId, {
+        startX: 100,
+        startY: 100
+      });
+
+      document.getElementById('mindParentId').value = rootId;
+      alert('演示思维导图创建成功！');
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 320px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .plugin-status {
+      margin-bottom: 12px;
+    }
+
+    .plugin-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .plugin-item:last-child {
+      border-bottom: none;
+    }
+
+    .plugin-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .plugin-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background-color: #e0e0e0;
+      color: #666;
+    }
+
+    .plugin-badge.enabled {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .plugin-actions {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #eee;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</body>
+</html>

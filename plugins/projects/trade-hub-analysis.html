@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Hub - Analysis</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:var(--cf-bg-100,#f9fafb);color:var(--cf-text-primary);min-height:100vh}
+    .th-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--cf-border);background:#fff}
+    .th-nav{display:flex;gap:.5rem}
+    .th-nav a{padding:.5rem 1rem;color:var(--cf-text-secondary);text-decoration:none;border-radius:.5rem;font-size:.875rem}
+    .th-nav a.active{background:var(--cf-primary);color:#fff}
+    .th-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;padding:1.5rem;max-width:1200px;margin:0 auto}
+    .th-full{grid-column:span 2}
+    @media(max-width:768px){.th-grid{grid-template-columns:1fr}.th-full{grid-column:span 1}}
+  </style>
+</head>
+<body>
+  <header class="th-header">
+    <h2>Trade Hub</h2>
+    <nav class="th-nav">
+      <a href="trade-hub-dashboard.html">Dashboard</a>
+      <a href="trade-hub-ai.html">AI</a>
+      <a href="trade-hub-strategy.html">Strategy</a>
+      <a href="trade-hub-analysis.html" class="active">Analysis</a>
+      <a href="trade-hub-trade.html">Trade</a>
+    </nav>
+  </header>
+  <div id="cardContainer" class="th-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../trade-hub/trade-hub-core.js"></script>
+  <script>
+    (function(){
+      const c = document.getElementById('cardContainer');
+      const f = new CardFrame(c, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(f.typeRegistry);
+      CardFrameTailwindIntegration.install(f, { project:'trade-hub' });
+      CardFrameTradeHubCore.install(f, { page:'analysis' });
+      CardFrameSharedInteractions.install(f);
+      f.themeManager.applyTheme('trade-hub');
+
+      // 报表卡片
+      f.addCard({
+        id: 'rep1', type: 'th-report-card',
+        props: {
+          title: '交易报表', span: 'span-1',
+          totalProfit: 12580.50,
+          winRate: 68.5,
+          avgWin: 856.25,
+          avgLoss: -342.80,
+          maxWin: 3250.00,
+          maxLoss: -1280.00,
+          totalFees: 425.30
+        }
+      });
+
+      // 盈亏图表
+      f.addCard({
+        id: 'pc1', type: 'th-profit-chart',
+        props: {
+          title: '累计盈亏', span: 'span-1',
+          periods: [
+            { date: '07-01', profit: 500 },
+            { date: '07-02', profit: 1200 },
+            { date: '07-03', profit: 800 },
+            { date: '07-04', profit: -200 },
+            { date: '07-05', profit: 1500 },
+            { date: '07-06', profit: 2100 },
+            { date: '07-07', profit: 1800 },
+            { date: '07-08', profit: -500 },
+            { date: '07-09', profit: 3200 }
+          ]
+        }
+      });
+
+      // 交易明细表
+      f.addCard({
+        id: 'tt1', type: 'th-trade-table',
+        props: {
+          title: '交易明细', span: 'span-2',
+          trades: [
+            { time: '2026-07-09 10:32', pair: 'BTC/USDT', side: 'buy', price: 43200, amount: 0.5, fee: 10.80, pnl: 25.25 },
+            { time: '2026-07-09 09:15', pair: 'ETH/USDT', side: 'sell', price: 2680, amount: 5, fee: 6.70, pnl: 900.00 },
+            { time: '2026-07-08 14:20', pair: 'SOL/USDT', side: 'buy', price: 92.5, amount: 20, fee: 0.93, pnl: 56.00 },
+            { time: '2026-07-08 11:45', pair: 'BTC/USDT', side: 'buy', price: 42800, amount: 1, fee: 21.40, pnl: 450.50 },
+            { time: '2026-07-07 16:30', pair: 'AVAX/USDT', side: 'sell', price: 37.2, amount: 30, fee: 0.56, pnl: -24.00 }
+          ]
+        }
+      });
+
+      // 图表小组件
+      f.addCard({
+        id: 'cw1', type: 'th-chart-widget',
+        props: {
+          title: '7日胜率', span: 'span-1',
+          data: [
+            { timestamp: Date.now()-6*86400000, value: 62 },
+            { timestamp: Date.now()-5*86400000, value: 65 },
+            { timestamp: Date.now()-4*86400000, value: 58 },
+            { timestamp: Date.now()-3*86400000, value: 70 },
+            { timestamp: Date.now()-2*86400000, value: 68 },
+            { timestamp: Date.now()-1*86400000, value: 72 },
+            { timestamp: Date.now(), value: 68.5 }
+          ],
+          trend: 'up',
+          changePercent: 3.2
+        }
+      });
+
+      // 告警列表
+      f.addCard({
+        id: 'al1', type: 'th-alert-list',
+        props: {
+          title: '告警中心', span: 'span-1',
+          alerts: [
+            { id: 1, type: 'price', message: 'BTC 突破 43000 阻力位', level: 'success', time: '10:32', isRead: false },
+            { id: 2, type: 'strategy', message: 'MA Cross 策略触发买入信号', level: 'info', time: '09:45', isRead: false },
+            { id: 3, type: 'risk', message: '账户风险率达 75%，请注意', level: 'warning', time: '昨天', isRead: true },
+            { id: 4, type: 'system', message: '系统将于凌晨维护', level: 'error', time: '昨天', isRead: true }
+          ]
+        }
+      });
+
+      window.thFrame = f;
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindCanvas v4 - AI知识操作系统 (CardFrame)</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <link rel="stylesheet" href="../mindcanvas/mindcanvas-styles.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'PingFang SC', 'Noto Sans SC', sans-serif;
+      background: #fafafa;
+      color: #0a0a0a;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="mc-dashboard">
+    <header class="mc-header">
+      <h1>AI知识操作系统</h1>
+      <div class="mc-header-actions">
+        <div class="mc-add-card-wrap">
+          <button class="mc-add-card-btn" id="addCardBtn">
+            <span>+</span>
+            <span>添加卡片</span>
+          </button>
+          <div class="mc-add-card-menu" id="addCardMenu">
+            <div class="mc-add-card-item" data-type="ai-chat"><span class="mc-add-card-icon">🤖</span>AI管家</div>
+            <div class="mc-add-card-item" data-type="todo-list"><span class="mc-add-card-icon">📋</span>今日任务</div>
+            <div class="mc-add-card-item" data-type="knowledge-base"><span class="mc-add-card-icon">📚</span>知识库</div>
+            <div class="mc-add-card-item" data-type="ability-base"><span class="mc-add-card-icon">💪</span>能力库</div>
+            <div class="mc-add-card-item" data-type="knowledge-map"><span class="mc-add-card-icon">🗺️</span>知识地图</div>
+            <div class="mc-add-card-item" data-type="meta-ability"><span class="mc-add-card-icon">🧠</span>元能力</div>
+            <div class="mc-add-card-item" data-type="focus-mode"><span class="mc-add-card-icon">🎯</span>专注模式</div>
+            <div class="mc-add-card-item" data-type="notes"><span class="mc-add-card-icon">📝</span>笔记</div>
+            <div class="mc-add-card-item" data-type="calendar"><span class="mc-add-card-icon">📅</span>日历</div>
+          </div>
+        </div>
+        <button class="mc-btn-ghost" id="clearAllBtn">清空</button>
+      </div>
+    </header>
+
+    <div id="cardContainer" class="mc-card-grid"></div>
+  </div>
+
+  <!-- CardFrame Core -->
+  <script src="../../src/card-framework.js"></script>
+  <!-- Shared Plugins -->
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <!-- MindCanvas Plugin -->
+  <script src="../mindcanvas/mindcanvas-core.js"></script>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // 初始化 CardFrame
+      const container = document.getElementById('cardContainer');
+      const frame = new CardFrame(container, {
+        layoutMode: 'stream',
+        cardPool: { maxPerType: 20 }
+      });
+
+      // 注册共享类型
+      CardFrameSharedTypes.registerAll(frame.typeRegistry);
+
+      // 安装 Tailwind 集成插件
+      CardFrameTailwindIntegration.install(frame, { project: 'mindcanvas' });
+
+      // 安装 MindCanvas 核心插件
+      CardFrameMindCanvasCore.install(frame);
+
+      // 安装共享交互
+      CardFrameSharedInteractions.install(frame);
+
+      // 应用 MindCanvas 主题
+      frame.themeManager.applyTheme('mindcanvas');
+
+      // 默认卡片数据
+      const defaultCards = [
+        {
+          id: 'ai-butler',
+          type: 'ai-chat',
+          props: {
+            title: 'AI管家',
+            status: 'online',
+            span: 'span-2',
+            messages: [
+              { role: 'ai', text: '早上好！今天为你准备了 5 个学习任务' },
+              { role: 'user', text: '我刚做完牛顿第三定律的复习，感觉收获很大' },
+              { role: 'ai', text: '很好！你的物理理解力提升了 3 分。接下来建议你学习动量守恒' }
+            ],
+            actions: ['本周报告', '调整目标', '查看任务']
+          }
+        },
+        {
+          id: 'today-tasks',
+          type: 'todo-list',
+          props: {
+            title: '今日任务',
+            badge: '2/5',
+            span: 'span-1',
+            tasks: [
+              { id: 't1', text: '物理 · 复习牛顿第三定律', time: '2min', done: true },
+              { id: 't2', text: '物理 · 新学动量守恒', time: '8min', done: false },
+              { id: 't3', text: '数学 · 完成导数练习题', time: '15min', done: false },
+              { id: 't4', text: '英语 · 背诵 20 个单词', time: '10min', done: false },
+              { id: 't5', text: '化学 · 复习元素周期表', time: '5min', done: false }
+            ],
+            progress: 20
+          }
+        },
+        {
+          id: 'knowledge-base',
+          type: 'knowledge-base',
+          props: {
+            title: '知识库',
+            span: 'span-1',
+            stats: { principles: 47, materials: 128, connections: 89 },
+            items: [
+              { name: '牛顿第三定律', status: '已审核', color: 'blue' },
+              { name: '动量守恒定律', status: '已审核', color: 'purple' },
+              { name: '导数定义', status: '待审核', color: 'amber' },
+              { name: '化学键类型', status: '已审核', color: 'green' }
+            ]
+          }
+        },
+        {
+          id: 'ability-base',
+          type: 'ability-base',
+          props: {
+            title: '能力库',
+            span: 'span-1',
+            score: 66.7,
+            dimensions: [
+              { name: '感知力', score: 72, color: 'blue' },
+              { name: '理解力', score: 78, color: 'purple' },
+              { name: '思考力', score: 65, color: 'amber' },
+              { name: '表达力', score: 58, color: 'green' },
+              { name: '执行力', score: 70, color: 'red' },
+              { name: '创造力', score: 62, color: 'blue' },
+              { name: '元能力', score: 55, color: 'purple' }
+            ]
+          }
+        },
+        {
+          id: 'knowledge-map',
+          type: 'knowledge-map',
+          props: {
+            title: '知识地图',
+            span: 'span-2',
+            status: 'AI 运行中',
+            nodes: 47,
+            edges: 89,
+            svgData: `<svg viewBox="0 0 600 200" style="width:100%;height:200px;background:var(--cf-bg-200)">
+              <circle cx="100" cy="100" r="20" fill="#4A90E2" opacity="0.8"/>
+              <circle cx="200" cy="60" r="15" fill="#7C3AED" opacity="0.8"/>
+              <circle cx="300" cy="120" r="18" fill="#059669" opacity="0.8"/>
+              <circle cx="400" cy="80" r="12" fill="#D97706" opacity="0.8"/>
+              <circle cx="500" cy="100" r="16" fill="#DC2626" opacity="0.8"/>
+              <line x1="120" y1="100" x2="185" y2="60" stroke="#ccc" stroke-width="1"/>
+              <line x1="215" y1="60" x2="282" y2="120" stroke="#ccc" stroke-width="1"/>
+              <line x1="318" y1="120" x2="388" y2="80" stroke="#ccc" stroke-width="1"/>
+              <line x1="412" y1="80" x2="484" y2="100" stroke="#ccc" stroke-width="1"/>
+              <text x="100" y="140" text-anchor="middle" font-size="10" fill="#666">物理</text>
+              <text x="200" y="40" text-anchor="middle" font-size="10" fill="#666">数学</text>
+              <text x="300" y="160" text-anchor="middle" font-size="10" fill="#666">化学</text>
+            </svg>`
+          }
+        }
+      ];
+
+      // 加载默认卡片
+      defaultCards.forEach(card => frame.addCard(card));
+
+      // 添加卡片下拉菜单
+      const addCardBtn = document.getElementById('addCardBtn');
+      const addCardMenu = document.getElementById('addCardMenu');
+
+      addCardBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addCardMenu.classList.toggle('active');
+      });
+
+      document.addEventListener('click', () => {
+        addCardMenu.classList.remove('active');
+      });
+
+      addCardMenu.querySelectorAll('.mc-add-card-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const type = item.dataset.type;
+          const id = `card-${Date.now()}`;
+          const titles = {
+            'ai-chat': 'AI管家',
+            'todo-list': '今日任务',
+            'knowledge-base': '知识库',
+            'ability-base': '能力库',
+            'knowledge-map': '知识地图',
+            'meta-ability': '元能力',
+            'focus-mode': '专注模式',
+            'notes': '笔记',
+            'calendar': '日历'
+          };
+
+          frame.addCard({
+            id,
+            type,
+            props: {
+              title: titles[type] || '新卡片',
+              span: 'span-1',
+              ...(type === 'todo-list' ? { tasks: [], progress: 0, badge: '0/0' } : {}),
+              ...(type === 'knowledge-base' ? { stats: { principles: 0, materials: 0, connections: 0 }, items: [] } : {}),
+              ...(type === 'ability-base' ? { score: 0, dimensions: [] } : {}),
+              ...(type === 'meta-ability' ? { items: [] } : {}),
+              ...(type === 'focus-mode' ? { mode: 'work', duration: 1500, remaining: 1500, isRunning: false } : {}),
+              ...(type === 'notes' ? { content: '', lastEdited: '' } : {}),
+              ...(type === 'calendar' ? { currentDate: Date.now(), events: [] } : {})
+            }
+          });
+        });
+      });
+
+      // 清空按钮
+      document.getElementById('clearAllBtn').addEventListener('click', () => {
+        if (confirm('确定要清空所有卡片吗？')) {
+          frame.clearAllCards();
+        }
+      });
+
+      // 监听事件
+      frame.eventBus.on('card:minimized', (data) => {
+        // console.log('卡片最小化:', data.cardId);
+      });
+
+      frame.eventBus.on('task:toggled', (data) => {
+        // console.log('任务切换:', data);
+      });
+
+      // 暴露全局实例供调试
+      window.mindcanvasFrame = frame;
+
+    })();
+  </script>
+</body>
+</html>

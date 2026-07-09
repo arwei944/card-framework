@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>05 - 画布模式 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎨 画布模式</h1>
+    <p>画布模式下的卡片拖拽、画布平移和缩放、自由布局</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>布局模式</h3>
+        <button class="btn" onclick="setLayout('stream')">流式布局</button>
+        <button class="btn btn-primary" onclick="setLayout('canvas')">画布模式</button>
+      </div>
+
+      <div class="section">
+        <h3>视图控制</h3>
+        <button class="btn" onclick="resetView()">重置视图</button>
+        <button class="btn" onclick="zoomIn()">放大 +</button>
+        <button class="btn" onclick="zoomOut()">缩小 -</button>
+        <button class="btn" onclick="fitView()">适应视图</button>
+      </div>
+
+      <div class="section">
+        <h3>添加卡片</h3>
+        <button class="btn btn-primary" onclick="addTextCard()">添加文本卡</button>
+        <button class="btn" onclick="addTaskCard()">添加任务卡</button>
+      </div>
+
+      <div class="section">
+        <h3>操作提示</h3>
+        <ul class="tip-list">
+          <li>拖拽卡片移动位置</li>
+          <li>按住空白处拖动平移画布</li>
+          <li>Ctrl + 滚轮缩放画布</li>
+          <li>双击空白处添加卡片</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>状态</h3>
+        <p>缩放比例：<span id="zoomLevel">100%</span></p>
+        <p>卡片数量：<span id="cardCount">0</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="欢迎来到画布模式" position-x="50" position-y="50">
+        <p>这是画布模式，你可以自由拖拽卡片到任何位置。</p>
+        <br>
+        <p><strong>功能特性：</strong></p>
+        <ul>
+          <li>🖱️ 自由拖拽卡片</li>
+          <li>🔍 画布缩放和平移</li>
+          <li>🎯 自由布局定位</li>
+        </ul>
+      </cf-card>
+
+      <cf-card type="task" title="拖拽试试我" priority="high" position-x="350" position-y="100"></cf-card>
+      <cf-card type="text" title="自由布局" position-x="650" position-y="150">
+        <p>每张卡片都可以放在画布的任意位置。</p>
+      </cf-card>
+      <cf-card type="task" title="缩放画布" priority="medium" position-x="100" position-y="250"></cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      frame.setLayoutMode('canvas');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+
+      frame.on(CardFrame.EVENT_TYPES.LAYOUT_CHANGED, (e) => {
+        console.log('布局模式变更:', e.detail.mode);
+      });
+    });
+
+    function updateStats() {
+      if (!frame) return;
+      document.getElementById('cardCount').textContent = frame.getAllCards().length;
+
+      if (frame.layoutEngine && frame.layoutEngine.mode === 'canvas') {
+        const scale = frame.layoutEngine.scale || 1;
+        document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+      }
+    }
+
+    function setLayout(mode) {
+      frame.setLayoutMode(mode);
+    }
+
+    function resetView() {
+      if (frame.layoutEngine && frame.layoutEngine.resetView) {
+        frame.layoutEngine.resetView();
+        updateStats();
+      }
+    }
+
+    function zoomIn() {
+      if (frame.layoutEngine && frame.layoutEngine.zoomBy) {
+        frame.layoutEngine.zoomBy(1.2);
+        updateStats();
+      }
+    }
+
+    function zoomOut() {
+      if (frame.layoutEngine && frame.layoutEngine.zoomBy) {
+        frame.layoutEngine.zoomBy(0.8);
+        updateStats();
+      }
+    }
+
+    function fitView() {
+      if (frame.layoutEngine && frame.layoutEngine.fitView) {
+        frame.layoutEngine.fitView();
+        updateStats();
+      }
+    }
+
+    function addTextCard() {
+      const x = Math.random() * 300 + 100;
+      const y = Math.random() * 300 + 100;
+
+      frame.createCard('text', {
+        title: `新卡片 ${frame.getAllCards().length + 1}`,
+        content: '拖拽我到任意位置',
+        position: { x, y }
+      });
+    }
+
+    function addTaskCard() {
+      const x = Math.random() * 300 + 100;
+      const y = Math.random() * 300 + 100;
+
+      const priorities = ['high', 'medium', 'low'];
+      const priority = priorities[Math.floor(Math.random() * priorities.length)];
+
+      frame.createCard('task', {
+        title: `任务 ${frame.getAllCards().length + 1}`,
+        priority,
+        position: { x, y }
+      });
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 280px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .tip-list {
+      font-size: 13px;
+      color: #666;
+      padding-left: 20px;
+      line-height: 1.8;
+    }
+
+    .card-container {
+      flex: 1;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+
+      .card-container {
+        height: 500px;
+      }
+    }
+  </style>
+</body>
+</html>

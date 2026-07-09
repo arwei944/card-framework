@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>08 - 国际化 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🌍 国际化 (i18n)</h1>
+    <p id="header-subtitle">中英文切换、浏览器语言自动检测、翻译参数替换</p>
+    <p><a href="index.html" class="back-link" id="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3 id="panel-lang-title">语言切换</h3>
+        <button class="btn" onclick="setLocale('zh-CN')">🇨🇳 简体中文</button>
+        <button class="btn" onclick="setLocale('en-US')">🇺🇸 English</button>
+      </div>
+
+      <div class="section">
+        <h3 id="panel-auto-title">自动检测</h3>
+        <button class="btn btn-primary" onclick="detectBrowserLang()" id="btn-detect">检测浏览器语言</button>
+        <p class="hint" id="hint-browser">自动匹配浏览器默认语言</p>
+      </div>
+
+      <div class="section">
+        <h3 id="panel-params-title">参数替换演示</h3>
+        <button class="btn" onclick="demoParams()" id="btn-demo">演示参数替换</button>
+        <div id="params-result" class="params-box"></div>
+      </div>
+
+      <div class="section">
+        <h3 id="panel-events-title">语言变更事件</h3>
+        <button class="btn" onclick="toggleLangLog()" id="btn-log">开启语言日志</button>
+        <div id="langLog" class="log-box" style="display: none;">
+          <p class="log-title" id="log-title">语言变更记录：</p>
+          <div id="logContent" class="log-content"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 id="panel-status-title">当前状态</h3>
+        <p id="status-current">当前语言：<span class="lang-badge">zh-CN</span></p>
+        <p id="status-available">可用语言：<span id="available-langs">zh-CN, en-US</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title-i18n="demo.welcome.title">
+        <p data-i18n="demo.welcome.content">这是国际化演示页面，展示多语言支持。</p>
+        <br>
+        <p><strong data-i18n="demo.features.title">核心功能：</strong></p>
+        <ul>
+          <li data-i18n="demo.features.1">✅ 中英文双语切换</li>
+          <li data-i18n="demo.features.2">✅ 浏览器语言自动检测</li>
+          <li data-i18n="demo.features.3">✅ 翻译参数动态替换</li>
+          <li data-i18n="demo.features.4">✅ 语言变更事件监听</li>
+        </ul>
+      </cf-card>
+
+      <cf-card type="task" title-i18n="demo.task1.title" priority="high"></cf-card>
+      <cf-card type="task" title-i18n="demo.task2.title" priority="medium"></cf-card>
+      <cf-card type="progress" title-i18n="demo.progress.title" value="85" max="100" unit="%"></cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+    let langLogEnabled = false;
+
+    const customTranslations = {
+      'zh-CN': {
+        'demo.welcome.title': '🌍 欢迎使用国际化',
+        'demo.welcome.content': '这是国际化演示页面，展示多语言支持。',
+        'demo.features.title': '核心功能：',
+        'demo.features.1': '✅ 中英文双语切换',
+        'demo.features.2': '✅ 浏览器语言自动检测',
+        'demo.features.3': '✅ 翻译参数动态替换',
+        'demo.features.4': '✅ 语言变更事件监听',
+        'demo.task1.title': '切换语言试试看',
+        'demo.task2.title': '添加自定义翻译',
+        'demo.progress.title': '国际化进度',
+        'demo.params.greeting': '你好，{name}！',
+        'demo.params.items': '共有 {count} 个项目',
+        'header.subtitle': '中英文切换、浏览器语言自动检测、翻译参数替换',
+        'panel.lang.title': '语言切换',
+        'panel.auto.title': '自动检测',
+        'btn.detect': '检测浏览器语言',
+        'hint.browser': '自动匹配浏览器默认语言',
+        'panel.params.title': '参数替换演示',
+        'btn.demo': '演示参数替换',
+        'panel.events.title': '语言变更事件',
+        'btn.log': '开启语言日志',
+        'log.title': '语言变更记录：',
+        'panel.status.title': '当前状态',
+        'status.current': '当前语言：',
+        'status.available': '可用语言：',
+        'back.link': '← 返回示例列表'
+      },
+      'en-US': {
+        'demo.welcome.title': '🌍 Welcome to i18n',
+        'demo.welcome.content': 'This is an i18n demo page showing multi-language support.',
+        'demo.features.title': 'Core Features:',
+        'demo.features.1': '✅ Chinese/English bilingual',
+        'demo.features.2': '✅ Browser language auto-detect',
+        'demo.features.3': '✅ Dynamic parameter replacement',
+        'demo.features.4': '✅ Language change events',
+        'demo.task1.title': 'Try switching language',
+        'demo.task2.title': 'Add custom translations',
+        'demo.progress.title': 'i18n Progress',
+        'demo.params.greeting': 'Hello, {name}!',
+        'demo.params.items': 'Total {count} items',
+        'header.subtitle': 'Chinese/English switch, browser auto-detect, parameter replacement',
+        'panel.lang.title': 'Language Switch',
+        'panel.auto.title': 'Auto Detect',
+        'btn.detect': 'Detect Browser Language',
+        'hint.browser': 'Auto-match browser default language',
+        'panel.params.title': 'Parameter Demo',
+        'btn.demo': 'Demo Params',
+        'panel.events.title': 'Language Events',
+        'btn.log': 'Enable Lang Log',
+        'log.title': 'Language change log:',
+        'panel.status.title': 'Current Status',
+        'status.current': 'Current Language:',
+        'status.available': 'Available:',
+        'back.link': '← Back to examples'
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+
+      if (frame.i18n) {
+        for (const lang in customTranslations) {
+          if (frame.i18n.addTranslations) {
+            frame.i18n.addTranslations(lang, customTranslations[lang]);
+          }
+        }
+      }
+
+      updatePageLang();
+
+      frame.on(CardFrame.EVENT_TYPES.LANGUAGE_CHANGED, (e) => {
+        addLangLog(e.detail.locale);
+        updatePageLang();
+      });
+    });
+
+    function setLocale(locale) {
+      if (frame.i18n) {
+        frame.i18n.setLocale(locale);
+      }
+    }
+
+    function detectBrowserLang() {
+      if (frame.i18n && frame.i18n.detectBrowserLanguage) {
+        const detected = frame.i18n.detectBrowserLanguage();
+        alert('检测到浏览器语言: ' + detected);
+        frame.i18n.setLocale(detected);
+      } else {
+        const browserLang = navigator.language || navigator.userLanguage;
+        alert('浏览器语言: ' + browserLang);
+      }
+    }
+
+    function demoParams() {
+      if (!frame.i18n) return;
+
+      const greeting = frame.i18n.t('demo.params.greeting', { name: '张三' });
+      const items = frame.i18n.t('demo.params.items', { count: 42 });
+
+      const resultEl = document.getElementById('params-result');
+      resultEl.innerHTML = `
+        <p>${greeting}</p>
+        <p>${items}</p>
+      `;
+    }
+
+    function toggleLangLog() {
+      langLogEnabled = !langLogEnabled;
+      const logEl = document.getElementById('langLog');
+      logEl.style.display = langLogEnabled ? 'block' : 'none';
+
+      const btn = event.target;
+      btn.textContent = langLogEnabled 
+        ? (frame.i18n && frame.i18n.getLocale() === 'en-US' ? 'Disable Lang Log' : '关闭语言日志')
+        : (frame.i18n && frame.i18n.getLocale() === 'en-US' ? 'Enable Lang Log' : '开启语言日志');
+    }
+
+    function addLangLog(locale) {
+      if (!langLogEnabled) return;
+
+      const logContent = document.getElementById('logContent');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${time}] Switched to ${locale}`;
+      logContent.insertBefore(entry, logContent.firstChild);
+
+      if (logContent.children.length > 20) {
+        logContent.removeChild(logContent.lastChild);
+      }
+    }
+
+    function updatePageLang() {
+      if (!frame.i18n) return;
+
+      const t = (key) => frame.i18n.t(key) || key;
+
+      document.getElementById('header-subtitle').textContent = t('header.subtitle');
+      document.getElementById('back-link').textContent = t('back.link');
+      document.getElementById('panel-lang-title').textContent = t('panel.lang.title');
+      document.getElementById('panel-auto-title').textContent = t('panel.auto.title');
+      document.getElementById('btn-detect').textContent = t('btn.detect');
+      document.getElementById('hint-browser').textContent = t('hint.browser');
+      document.getElementById('panel-params-title').textContent = t('panel.params.title');
+      document.getElementById('btn-demo').textContent = t('btn.demo');
+      document.getElementById('panel-events-title').textContent = t('panel.events.title');
+      document.getElementById('log-title').textContent = t('log.title');
+      document.getElementById('panel-status-title').textContent = t('panel.status.title');
+      document.getElementById('status-current').innerHTML = t('status.current') + 
+        '<span class="lang-badge">' + frame.i18n.getLocale() + '</span>';
+      document.getElementById('status-available').innerHTML = t('status.available') + 
+        '<span id="available-langs">zh-CN, en-US</span>';
+
+      const langBadge = document.querySelector('.lang-badge');
+      if (langBadge) {
+        langBadge.textContent = frame.i18n.getLocale();
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .lang-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background-color: #e3f2fd;
+      color: #0d47a1;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .params-box {
+      margin-top: 12px;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .log-box {
+      margin-top: 12px;
+      background: #fafafa;
+      border-radius: 4px;
+      padding: 8px;
+    }
+
+    .log-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .log-content {
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+    }
+
+    .log-entry {
+      padding: 3px 6px;
+      color: #555;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</body>
+</html>

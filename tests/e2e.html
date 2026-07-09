@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CardFramework E2E Tests</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #test-results {
+      margin-bottom: 30px;
+    }
+
+    .framework-test-area {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .framework-test-area h2 {
+      margin-top: 0;
+      color: #555;
+      font-size: 18px;
+    }
+
+    #card-framework-container {
+      min-height: 300px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .controls button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .controls button:hover {
+      background: #2563eb;
+    }
+
+    .controls button.secondary {
+      background: #6b7280;
+    }
+
+    .controls button.secondary:hover {
+      background: #4b5563;
+    }
+
+    .controls button.success {
+      background: #22c55e;
+    }
+
+    .controls button.success:hover {
+      background: #16a34a;
+    }
+
+    .controls button.danger {
+      background: #ef4444;
+    }
+
+    .controls button.danger:hover {
+      background: #dc2626;
+    }
+
+    .declarative-test {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🧪 CardFramework E2E 测试</h1>
+    
+    <div id="test-results">
+      <p style="text-align: center; color: #666;">正在加载测试...</p>
+    </div>
+
+    <div class="framework-test-area">
+      <h2>框架测试区域</h2>
+      <div class="controls">
+        <button onclick="runTests()">重新运行测试</button>
+        <button class="secondary" onclick="clearCards()">清空卡片</button>
+        <button class="success" onclick="addTestCard()">添加测试卡片</button>
+      </div>
+      <div id="card-framework-container"></div>
+    </div>
+
+    <div class="declarative-test" id="declarative-test-area">
+      <cf-card data-card-id="declarative-card-1" data-card-type="text">
+        <cf-prop name="title">声明式测试卡片 1</cf-prop>
+        <cf-prop name="content">这是通过声明式 HTML 创建的卡片</cf-prop>
+      </cf-card>
+      <cf-card data-card-id="declarative-card-2" data-card-type="task">
+        <cf-prop name="title">声明式任务卡片</cf-prop>
+        <cf-prop name="priority">medium</cf-prop>
+      </cf-card>
+    </div>
+  </div>
+
+  <script src="../src/card-framework.js"></script>
+  <script src="e2e-runner.js"></script>
+  <script>
+    let frame = null;
+    let testCardCount = 0;
+
+    function initFramework() {
+      const container = document.getElementById('card-framework-container');
+      frame = new CardFrame(container);
+      frame.relationshipEngine.enable();
+    }
+
+    function addTestCard() {
+      if (!frame) return;
+      testCardCount++;
+      frame.createCard('text', {
+        title: `测试卡片 ${testCardCount}`,
+        content: `这是第 ${testCardCount} 张测试卡片的内容`
+      });
+    }
+
+    function clearCards() {
+      if (!frame) return;
+      const cards = frame.getAllCards();
+      cards.forEach(card => frame.removeCard(card.id));
+      testCardCount = 0;
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function defineE2ETests() {
+      describe('1. 卡片 CRUD 完整流程', function() {
+        it('应该能创建卡片', function() {
+          const card = frame.createCard('text', { title: 'CRUD测试-创建', content: '测试内容' });
+          expect(card).toBeDefined();
+          expect(card.id).toBeDefined();
+          expect(card.type).toBe('text');
+          expect(card.props.title).toBe('CRUD测试-创建');
+        });
+
+        it('应该能读取卡片', function() {
+          const card = frame.createCard('text', { title: 'CRUD测试-读取' });
+          const found = frame.getCard(card.id);
+          expect(found).toBeDefined();
+          expect(found.id).toBe(card.id);
+          expect(found.props.title).toBe('CRUD测试-读取');
+        });
+
+        it('应该能更新卡片', function() {
+          const card = frame.createCard('text', { title: 'CRUD测试-更新前' });
+          card.props.title = 'CRUD测试-更新后';
+          const updated = frame.updateCard(card);
+          expect(updated.props.title).toBe('CRUD测试-更新后');
+        });
+
+        it('应该能删除卡片', function() {
+          const card = frame.createCard('text', { title: 'CRUD测试-删除' });
+          const result = frame.removeCard(card.id);
+          expect(result).toBeTruthy();
+          const found = frame.getCard(card.id);
+          expect(found).toBeUndefined();
+        });
+
+        it('应该能获取所有卡片', function() {
+          const initialCount = frame.getAllCards().length;
+          frame.createCard('text', { title: '批量测试1' });
+          frame.createCard('text', { title: '批量测试2' });
+          const allCards = frame.getAllCards();
+          expect(allCards.length).toBe(initialCount + 2);
+        });
+      });
+
+      describe('2. 声明式 HTML 初始化', function() {
+        it('应该能识别 cf-card 元素', function() {
+          const testArea = document.getElementById('declarative-test-area');
+          const cfCards = testArea.querySelectorAll('cf-card');
+          expect(cfCards.length).toBeGreaterThan(0);
+        });
+
+        it('应该能从声明式 HTML 创建卡片', async function() {
+          const container = document.createElement('div');
+          container.innerHTML = `
+            <cf-card data-card-id="dec-test-1" data-card-type="text">
+              <cf-prop name="title">声明式卡片</cf-prop>
+              <cf-prop name="content">声明式内容</cf-prop>
+            </cf-card>
+          `;
+          document.body.appendChild(container);
+          
+          const testFrame = new CardFrame(container);
+          await delay(100);
+          
+          const cards = testFrame.getAllCards();
+          expect(cards.length).toBeGreaterThanOrEqual(1);
+          
+          document.body.removeChild(container);
+        });
+      });
+
+      describe('3. DOM 操作双向同步', function() {
+        it('Store 变化应该同步到 DOM', async function() {
+          const card = frame.createCard('text', { title: 'DOM同步测试' });
+          await delay(50);
+          const cardEl = document.querySelector(`[data-card-id="${card.id}"]`);
+          expect(cardEl).toBeTruthy();
+          expect(cardEl.dataset.cardType).toBe('text');
+        });
+
+        it('应该能通过 realTimeValidator 检测 DOM 变化', function() {
+          expect(frame.realTimeValidator).toBeDefined();
+          expect(typeof frame.realTimeValidator.start).toBe('function');
+        });
+
+        it('应该有 DOM_SYNCHRONIZED 事件', function() {
+          expect(typeof frame.on).toBe('function');
+        });
+      });
+
+      describe('4. 布局模式切换', function() {
+        it('默认应该是流式布局', function() {
+          expect(frame.getLayoutMode()).toBe('stream');
+        });
+
+        it('应该能切换到画布模式', function() {
+          frame.setLayoutMode('canvas');
+          expect(frame.getLayoutMode()).toBe('canvas');
+          expect(document.getElementById('card-framework-container').dataset.layoutMode).toBe('canvas');
+        });
+
+        it('应该能切换回流式布局', function() {
+          frame.setLayoutMode('canvas');
+          frame.setLayoutMode('stream');
+          expect(frame.getLayoutMode()).toBe('stream');
+        });
+
+        it('切换布局应该触发 LAYOUT_CHANGED 事件', function() {
+          let eventFired = false;
+          const handler = () => { eventFired = true; };
+          frame.on('layoutChanged', handler);
+          frame.setLayoutMode('canvas');
+          expect(eventFired).toBeTruthy();
+          frame.off('layoutChanged', handler);
+          frame.setLayoutMode('stream');
+        });
+      });
+
+      describe('5. 画布拖拽', function() {
+        it('画布模式下卡片应该有绝对定位', async function() {
+          frame.setLayoutMode('canvas');
+          const card = frame.createCard('text', { title: '拖拽测试卡片' });
+          card.position = { x: 100, y: 200 };
+          frame.updateCard(card);
+          await delay(50);
+          
+          const cardEl = document.querySelector(`[data-card-id="${card.id}"]`);
+          expect(cardEl.style.position).toBe('absolute');
+          frame.setLayoutMode('stream');
+        });
+
+        it('LayoutEngine 应该支持拖拽功能', function() {
+          expect(frame.layoutEngine).toBeDefined();
+          expect(typeof frame.layoutEngine.setMode).toBe('function');
+        });
+      });
+
+      describe('6. 主题切换', function() {
+        it('默认应该是亮色主题', function() {
+          expect(frame.themeManager.getCurrentTheme()).toBe('light');
+        });
+
+        it('应该能切换到暗色主题', function() {
+          frame.themeManager.applyTheme('dark');
+          expect(frame.themeManager.getCurrentTheme()).toBe('dark');
+          expect(document.getElementById('card-framework-container').dataset.theme).toBe('dark');
+        });
+
+        it('应该能切换回亮色主题', function() {
+          frame.themeManager.applyTheme('dark');
+          frame.themeManager.applyTheme('light');
+          expect(frame.themeManager.getCurrentTheme()).toBe('light');
+        });
+
+        it('切换主题应该触发 THEME_CHANGED 事件', function() {
+          let eventFired = false;
+          const handler = () => { eventFired = true; };
+          frame.on('themeChanged', handler);
+          frame.themeManager.applyTheme('dark');
+          expect(eventFired).toBeTruthy();
+          frame.off('themeChanged', handler);
+          frame.themeManager.applyTheme('light');
+        });
+
+        it('应该能注册自定义主题', function() {
+          const customTheme = {
+            name: 'custom-test',
+            label: '测试主题',
+            variables: { '--test-var': '#ff0000' }
+          };
+          const result = frame.themeManager.registerTheme(customTheme);
+          expect(result).toBeTruthy();
+          const theme = frame.themeManager.getTheme('custom-test');
+          expect(theme).toBeDefined();
+          expect(theme.name).toBe('custom-test');
+        });
+      });
+
+      describe('7. 语言切换', function() {
+        it('默认应该是简体中文', function() {
+          expect(frame.i18n.getCurrentLocale()).toBe('zh-CN');
+        });
+
+        it('应该能切换到英文', function() {
+          const result = frame.i18n.setLocale('en-US');
+          expect(result).toBeTruthy();
+          expect(frame.i18n.getCurrentLocale()).toBe('en-US');
+        });
+
+        it('应该能切换回中文', function() {
+          frame.i18n.setLocale('en-US');
+          const result = frame.i18n.setLocale('zh-CN');
+          expect(result).toBeTruthy();
+          expect(frame.i18n.getCurrentLocale()).toBe('zh-CN');
+        });
+
+        it('切换语言应该触发 LANGUAGE_CHANGED 事件', function() {
+          let eventFired = false;
+          const handler = () => { eventFired = true; };
+          frame.on('languageChanged', handler);
+          frame.i18n.setLocale('en-US');
+          expect(eventFired).toBeTruthy();
+          frame.off('languageChanged', handler);
+          frame.i18n.setLocale('zh-CN');
+        });
+
+        it('应该能翻译文本', function() {
+          frame.i18n.setLocale('zh-CN');
+          const text = frame.i18n.t('card.title.default');
+          expect(text).toBe('未命名卡片');
+        });
+      });
+
+      describe('8. 插件安装卸载', function() {
+        const testPlugin = {
+          name: 'test-plugin',
+          version: '1.0.0',
+          description: '测试插件',
+          install: function(frame) {
+            return { testValue: 42 };
+          }
+        };
+
+        it('应该能安装插件', function() {
+          const result = frame.installPlugin(testPlugin);
+          expect(result).toBeTruthy();
+          expect(frame.pluginManager.isInstalled('test-plugin')).toBeTruthy();
+        });
+
+        it('应该能启用插件', function() {
+          expect(frame.pluginManager.isEnabled('test-plugin')).toBeTruthy();
+        });
+
+        it('应该能获取插件实例', function() {
+          const plugin = frame.getPlugin('test-plugin');
+          expect(plugin).toBeDefined();
+          expect(plugin.testValue).toBe(42);
+        });
+
+        it('应该能禁用插件', function() {
+          const result = frame.disablePlugin('test-plugin');
+          expect(result).toBeTruthy();
+          expect(frame.pluginManager.isEnabled('test-plugin')).toBeFalsy();
+        });
+
+        it('应该能重新启用插件', function() {
+          const result = frame.enablePlugin('test-plugin');
+          expect(result).toBeTruthy();
+          expect(frame.pluginManager.isEnabled('test-plugin')).toBeTruthy();
+        });
+
+        it('应该能卸载插件', function() {
+          const result = frame.uninstallPlugin('test-plugin');
+          expect(result).toBeTruthy();
+          expect(frame.pluginManager.isInstalled('test-plugin')).toBeFalsy();
+        });
+
+        it('安装插件应该触发 PLUGIN_INSTALLED 事件', function() {
+          let eventFired = false;
+          const handler = () => { eventFired = true; };
+          frame.on('pluginInstalled', handler);
+          frame.installPlugin(testPlugin);
+          expect(eventFired).toBeTruthy();
+          frame.off('pluginInstalled', handler);
+          frame.uninstallPlugin('test-plugin');
+        });
+      });
+
+      describe('9. 批量操作', function() {
+        it('应该能批量创建卡片', function() {
+          const cardsToCreate = [
+            { type: 'text', props: { title: '批量创建1' } },
+            { type: 'text', props: { title: '批量创建2' } },
+            { type: 'text', props: { title: '批量创建3' } }
+          ];
+          const result = frame.batchCreateCards(cardsToCreate);
+          expect(result.success.length).toBe(3);
+          expect(result.errors.length).toBe(0);
+        });
+
+        it('应该能批量更新卡片', function() {
+          const card1 = frame.createCard('text', { title: '批量更新测试1' });
+          const card2 = frame.createCard('text', { title: '批量更新测试2' });
+          
+          const updates = [
+            { id: card1.id, props: { title: '批量更新后1' } },
+            { id: card2.id, props: { title: '批量更新后2' } }
+          ];
+          const result = frame.batchUpdateCards(updates);
+          expect(result.success.length).toBe(2);
+          expect(result.errors.length).toBe(0);
+          expect(frame.getCard(card1.id).props.title).toBe('批量更新后1');
+        });
+
+        it('应该能批量删除卡片', function() {
+          const card1 = frame.createCard('text', { title: '批量删除测试1' });
+          const card2 = frame.createCard('text', { title: '批量删除测试2' });
+          const card3 = frame.createCard('text', { title: '批量删除测试3' });
+          
+          const result = frame.batchRemoveCards([card1.id, card2.id, card3.id]);
+          expect(result.success.length).toBe(3);
+          expect(result.errors.length).toBe(0);
+          expect(frame.getCard(card1.id)).toBeUndefined();
+        });
+      });
+
+      describe('10. 数据导入导出', function() {
+        it('应该能导出数据', function() {
+          frame.createCard('text', { title: '导出测试卡片' });
+          const data = frame.exportData();
+          expect(data).toBeDefined();
+          expect(data.version).toBe('1.0');
+          expect(data.cards).toBeDefined();
+          expect(data.relationships).toBeDefined();
+          expect(data.cards.length).toBeGreaterThan(0);
+        });
+
+        it('应该能导出 JSON 字符串', function() {
+          const json = frame.exportJSON();
+          expect(typeof json).toBe('string');
+          const data = JSON.parse(json);
+          expect(data.cards).toBeDefined();
+        });
+
+        it('应该能导入数据', function() {
+          const testData = {
+            cards: [
+              {
+                id: 'import-test-card-1',
+                type: 'text',
+                props: { title: '导入测试卡片', content: '导入的内容' },
+                position: { x: 0, y: 0 },
+                status: 'active'
+              }
+            ],
+            relationships: []
+          };
+          
+          const initialCount = frame.getAllCards().length;
+          frame.importData(testData);
+          expect(frame.getAllCards().length).toBe(initialCount + 1);
+          expect(frame.getCard('import-test-card-1')).toBeDefined();
+        });
+      });
+
+      describe('11. 关系创建和可视化', function() {
+        it('应该能创建关系', function() {
+          const card1 = frame.createCard('text', { title: '关系源卡片' });
+          const card2 = frame.createCard('text', { title: '关系目标卡片' });
+          
+          const rel = frame.createRelationship(card1.id, card2.id, 'reference');
+          expect(rel).toBeDefined();
+          expect(rel.id).toBeDefined();
+          expect(rel.sourceId).toBe(card1.id);
+          expect(rel.targetId).toBe(card2.id);
+          expect(rel.type).toBe('reference');
+        });
+
+        it('应该能获取关系', function() {
+          const card1 = frame.createCard('text', { title: '关系测试1' });
+          const card2 = frame.createCard('text', { title: '关系测试2' });
+          const rel = frame.createRelationship(card1.id, card2.id, 'parent');
+          
+          const found = frame.getRelationship(rel.id);
+          expect(found).toBeDefined();
+          expect(found.type).toBe('parent');
+        });
+
+        it('应该能获取所有关系', function() {
+          const card1 = frame.createCard('text', { title: '关系测试A' });
+          const card2 = frame.createCard('text', { title: '关系测试B' });
+          const card3 = frame.createCard('text', { title: '关系测试C' });
+          
+          const initialCount = frame.getAllRelationships().length;
+          frame.createRelationship(card1.id, card2.id, 'reference');
+          frame.createRelationship(card2.id, card3.id, 'dependency');
+          
+          expect(frame.getAllRelationships().length).toBe(initialCount + 2);
+        });
+
+        it('应该能获取卡片的所有关系', function() {
+          const card1 = frame.createCard('text', { title: '中心卡片' });
+          const card2 = frame.createCard('text', { title: '关联卡片1' });
+          const card3 = frame.createCard('text', { title: '关联卡片2' });
+          
+          frame.createRelationship(card1.id, card2.id, 'reference');
+          frame.createRelationship(card3.id, card1.id, 'parent');
+          
+          const rels = frame.getRelationshipsByCard(card1.id);
+          expect(rels.length).toBe(2);
+        });
+
+        it('应该能按类型获取关系', function() {
+          const card1 = frame.createCard('text', { title: '类型测试1' });
+          const card2 = frame.createCard('text', { title: '类型测试2' });
+          
+          frame.createRelationship(card1.id, card2.id, 'dependency');
+          const depRels = frame.getRelationshipsByType('dependency');
+          expect(depRels.length).toBeGreaterThan(0);
+          depRels.forEach(rel => expect(rel.type).toBe('dependency'));
+        });
+
+        it('应该能删除关系', function() {
+          const card1 = frame.createCard('text', { title: '删除关系测试1' });
+          const card2 = frame.createCard('text', { title: '删除关系测试2' });
+          const rel = frame.createRelationship(card1.id, card2.id, 'reference');
+          
+          const result = frame.removeRelationship(rel.id);
+          expect(result).toBeTruthy();
+          expect(frame.getRelationship(rel.id)).toBeUndefined();
+        });
+
+        it('RelationshipEngine 应该已启用', function() {
+          expect(frame.relationshipEngine.isEnabled()).toBeTruthy();
+        });
+
+        it('RelationshipEngine 应该有 SVG 层', function() {
+          expect(frame.relationshipEngine.svg).toBeTruthy();
+        });
+
+        it('关系交互功能应该可以开启', function() {
+          frame.relationshipEngine.enableInteraction();
+          expect(frame.relationshipEngine.isInteractionEnabled()).toBeTruthy();
+          frame.relationshipEngine.disableInteraction();
+        });
+      });
+
+      describe('12. 自动修复验证', function() {
+        it('AutoFixer 应该存在', function() {
+          expect(frame.autoFixer).toBeDefined();
+        });
+
+        it('应该能启用/禁用自动修复', function() {
+          const original = frame.autoFixer.enabled;
+          frame.autoFixer.setEnabled(false);
+          expect(frame.autoFixer.enabled).toBeFalsy();
+          frame.autoFixer.setEnabled(true);
+          expect(frame.autoFixer.enabled).toBeTruthy();
+          frame.autoFixer.setEnabled(original);
+        });
+
+        it('应该能修复缺失的必填属性', function() {
+          const typeRegistry = frame.typeRegistry;
+          const testType = {
+            type: 'autofix-test-type',
+            propsSchema: [
+              { name: 'requiredProp', type: 'string', required: true, defaultValue: 'default-value' }
+            ],
+            renderTemplate: '<div class="card"><div class="card-body">{{requiredProp}}</div></div>'
+          };
+          typeRegistry.register(testType);
+          
+          const card = {
+            id: 'autofix-test-card',
+            type: 'autofix-test-type',
+            props: {},
+            position: { x: 0, y: 0 }
+          };
+          
+          const validation = typeRegistry.validate(card);
+          expect(validation.valid).toBeFalsy();
+          
+          const fixResult = frame.autoFixer.fixCard(card, validation);
+          expect(fixResult.fixed).toBeTruthy();
+          expect(card.props.requiredProp).toBe('default-value');
+        });
+
+        it('应该有 fixAll 方法', function() {
+          expect(typeof frame.autoFixer.fixAll).toBe('function');
+        });
+
+        it('应该能获取修复统计', function() {
+          const stats = frame.autoFixer.getStats();
+          expect(stats).toBeDefined();
+          expect(stats.totalFixes).toBeDefined();
+          expect(typeof stats.totalFixes).toBe('number');
+        });
+      });
+
+      describe('13. 熔断机制触发', function() {
+        it('CircuitBreaker 应该存在', function() {
+          expect(frame.circuitBreaker).toBeDefined();
+        });
+
+        it('默认应该是关闭状态', function() {
+          expect(frame.circuitBreaker.getGlobalState()).toBe('closed');
+        });
+
+        it('应该能记录成功', function() {
+          frame.circuitBreaker.recordSuccess('test-card');
+          expect(frame.circuitBreaker.getCardState('test-card')).toBe('closed');
+        });
+
+        it('应该能记录失败', function() {
+          frame.circuitBreaker.recordFailure('test-card-2');
+          expect(frame.circuitBreaker.getCardState('test-card-2')).toBe('closed');
+        });
+
+        it('多次失败应该触发熔断', function() {
+          const testCardId = 'circuit-breaker-test-card';
+          frame.circuitBreaker.reset(testCardId);
+          
+          for (let i = 0; i < 5; i++) {
+            frame.circuitBreaker.recordFailure(testCardId);
+          }
+          
+          expect(frame.circuitBreaker.getCardState(testCardId)).toBe('open');
+          frame.circuitBreaker.reset(testCardId);
+        });
+
+        it('熔断后 should canExecute 返回 false', function() {
+          const testCardId = 'circuit-breaker-exec-test';
+          frame.circuitBreaker.reset(testCardId);
+          
+          for (let i = 0; i < 5; i++) {
+            frame.circuitBreaker.recordFailure(testCardId);
+          }
+          
+          expect(frame.circuitBreaker.canExecute(testCardId)).toBeFalsy();
+          frame.circuitBreaker.reset(testCardId);
+        });
+
+        it('应该能获取统计信息', function() {
+          const stats = frame.circuitBreaker.getStats();
+          expect(stats).toBeDefined();
+          expect(stats.globalState).toBeDefined();
+          expect(stats.cardCount).toBeDefined();
+        });
+
+        it('应该能重置熔断', function() {
+          const testCardId = 'reset-test-card';
+          for (let i = 0; i < 5; i++) {
+            frame.circuitBreaker.recordFailure(testCardId);
+          }
+          expect(frame.circuitBreaker.getCardState(testCardId)).toBe('open');
+          
+          frame.circuitBreaker.reset(testCardId);
+          expect(frame.circuitBreaker.getCardState(testCardId)).toBe('closed');
+        });
+      });
+    }
+
+    async function runTests() {
+      e2eTestRunner.reset();
+      defineE2ETests();
+      await runE2ETests();
+    }
+
+    window.addEventListener('load', async function() {
+      initFramework();
+      defineE2ETests();
+      await delay(100);
+      await runE2ETests();
+    });
+  </script>
+</body>
+</html>

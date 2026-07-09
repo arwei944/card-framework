@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Hub - Dashboard (CardFrame)</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:system-ui,sans-serif; background:var(--cf-bg-100,#f9fafb); color:var(--cf-text-primary,#111827); min-height:100vh; }
+    .th-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid var(--cf-border,#e5e7eb); background:#fff; }
+    .th-nav { display:flex; gap:0.5rem; }
+    .th-nav a { padding:0.5rem 1rem; color:var(--cf-text-secondary,#6b7280); text-decoration:none; border-radius:0.5rem; font-size:0.875rem; }
+    .th-nav a.active { background:var(--cf-primary,#3b82f6); color:#fff; }
+    .th-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; padding:1.5rem; max-width:1400px; margin:0 auto; }
+    @media(max-width:768px){ .th-grid { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="th-header">
+    <h2>Trade Hub</h2>
+    <nav class="th-nav">
+      <a href="trade-hub-dashboard.html" class="active">Dashboard</a>
+      <a href="trade-hub-ai.html">AI</a>
+      <a href="trade-hub-strategy.html">Strategy</a>
+      <a href="trade-hub-analysis.html">Analysis</a>
+      <a href="trade-hub-trade.html">Trade</a>
+    </nav>
+  </header>
+  <div id="cardContainer" class="th-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../trade-hub/trade-hub-core.js"></script>
+  <script>
+    (function(){
+      const container = document.getElementById('cardContainer');
+      const frame = new CardFrame(container, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(frame.typeRegistry);
+      CardFrameTailwindIntegration.install(frame, { project:'trade-hub' });
+      CardFrameTradeHubCore.install(frame, { page:'dashboard' });
+      CardFrameSharedInteractions.install(frame);
+      frame.themeManager.applyTheme('trade-hub');
+
+      frame.addCard({ id:'st1', type:'th-stat-card', props:{ title:'总资产', label:'总资产', value:'$125,000', change:'+5.2%', trend:'up', span:'span-1' } });
+      frame.addCard({ id:'st2', type:'th-stat-card', props:{ title:'今日盈亏', label:'今日盈亏', value:'+$3,250', change:'+2.8%', trend:'up', span:'span-1' } });
+      frame.addCard({ id:'st3', type:'th-stat-card', props:{ title:'活跃策略', label:'活跃策略', value:'5', change:'+1', trend:'up', span:'span-1' } });
+      frame.addCard({ id:'st4', type:'th-stat-card', props:{ title:'胜率', label:'胜率', value:'68.5%', change:'+2.1%', trend:'up', span:'span-1' } });
+      frame.addCard({ id:'str1', type:'th-strategy-card', props:{ title:'MA Cross', name:'MA Cross', performance:12.5, status:'active', span:'span-2' } });
+      frame.addCard({ id:'ord1', type:'th-order-form', props:{ title:'快速下单', side:'buy', span:'span-2' } });
+
+      // 演示编排：3秒后触发 AI 建议
+      setTimeout(() => {
+        frame.eventBus.emit('ai:suggestion', { confidence: 15.2 });
+      }, 3000);
+
+      window.thFrame = frame;
+    })();
+  </script>
+</body>
+</html>

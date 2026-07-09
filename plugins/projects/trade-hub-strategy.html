@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Hub - Strategy</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:var(--cf-bg-100,#f9fafb);color:var(--cf-text-primary);min-height:100vh}
+    .th-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--cf-border);background:#fff}
+    .th-nav{display:flex;gap:.5rem}
+    .th-nav a{padding:.5rem 1rem;color:var(--cf-text-secondary);text-decoration:none;border-radius:.5rem;font-size:.875rem}
+    .th-nav a.active{background:var(--cf-primary);color:#fff}
+    .th-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;padding:1.5rem;max-width:1200px;margin:0 auto}
+    .th-full{grid-column:span 2}
+    @media(max-width:768px){.th-grid{grid-template-columns:1fr}.th-full{grid-column:span 1}}
+  </style>
+</head>
+<body>
+  <header class="th-header">
+    <h2>Trade Hub</h2>
+    <nav class="th-nav">
+      <a href="trade-hub-dashboard.html">Dashboard</a>
+      <a href="trade-hub-ai.html">AI</a>
+      <a href="trade-hub-strategy.html" class="active">Strategy</a>
+      <a href="trade-hub-analysis.html">Analysis</a>
+      <a href="trade-hub-trade.html">Trade</a>
+    </nav>
+  </header>
+  <div id="cardContainer" class="th-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../trade-hub/trade-hub-core.js"></script>
+  <script>
+    (function(){
+      const c = document.getElementById('cardContainer');
+      const f = new CardFrame(c, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(f.typeRegistry);
+      CardFrameTailwindIntegration.install(f, { project:'trade-hub' });
+      CardFrameTradeHubCore.install(f, { page:'strategy' });
+      CardFrameSharedInteractions.install(f);
+      f.themeManager.applyTheme('trade-hub');
+
+      // 策略列表
+      f.addCard({
+        id: 'str1', type: 'th-strategy-card',
+        props: { title: 'MA Cross', name: 'MA Cross', performance: 12.5, status: 'active', span: 'span-1' }
+      });
+      f.addCard({
+        id: 'str2', type: 'th-strategy-card',
+        props: { title: 'RSI Overbought', name: 'RSI Overbought', performance: 8.3, status: 'active', span: 'span-1' }
+      });
+      f.addCard({
+        id: 'str3', type: 'th-strategy-card',
+        props: { title: 'Bollinger Breakout', name: 'Bollinger Breakout', performance: -2.1, status: 'stopped', span: 'span-1' }
+      });
+      f.addCard({
+        id: 'str4', type: 'th-strategy-card',
+        props: { title: 'MACD Divergence', name: 'MACD Divergence', performance: 15.8, status: 'idle', span: 'span-1' }
+      });
+
+      // 策略图表
+      f.addCard({
+        id: 'pc1', type: 'th-chart-widget',
+        props: {
+          title: '策略累计收益', span: 'span-2',
+          data: [
+            { timestamp: Date.now()-29*86400000, value: 100 },
+            { timestamp: Date.now()-25*86400000, value: 105 },
+            { timestamp: Date.now()-20*86400000, value: 103 },
+            { timestamp: Date.now()-15*86400000, value: 108 },
+            { timestamp: Date.now()-10*86400000, value: 112 },
+            { timestamp: Date.now()-5*86400000, value: 110 },
+            { timestamp: Date.now(), value: 112.5 }
+          ],
+          trend: 'up',
+          changePercent: 12.5
+        }
+      });
+
+      // 告警列表
+      f.addCard({
+        id: 'al1', type: 'th-alert-list',
+        props: {
+          title: '策略告警', span: 'span-1',
+          alerts: [
+            { id: 1, type: 'strategy', message: 'MA Cross 触发买入信号', level: 'success', time: '10:32', isRead: false },
+            { id: 2, type: 'strategy', message: 'RSI 超买，建议减仓', level: 'warning', time: '09:45', isRead: false },
+            { id: 3, type: 'risk', message: '策略风险率超阈值', level: 'error', time: '昨天', isRead: true },
+            { id: 4, type: 'system', message: '策略回测完成', level: 'info', time: '昨天', isRead: true }
+          ]
+        }
+      });
+
+      // 下单表单
+      f.addCard({
+        id: 'ord1', type: 'th-order-form',
+        props: { title: '快速下单', side: 'buy', span: 'span-1' }
+      });
+
+      window.thFrame = f;
+    })();
+  </script>
+</body>
+</html>

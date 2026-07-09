@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 安装 Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm install
+
+    - name: 运行测试
+      run: npm test
+
+    - name: 输出测试结果
+      if: always()
+      run: |
+        echo "测试运行完成"
+        echo "Node.js 版本: ${{ matrix.node-version }}"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 安装 Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm install
+
+    - name: 构建项目
+      run: npm run build
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: card-framework-dist
+        path: dist/
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 安装 Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm install
+
+    - name: 构建项目
+      run: npm run build
+
+    - name: 下载构建产物
+      uses: actions/download-artifact@v4
+      with:
+        name: card-framework-dist
+        path: dist/
+
+    - name: 生成 Changelog
+      id: changelog
+      run: |
+        echo "## 变更内容" > CHANGELOG_RELEASE.md
+        echo "" >> CHANGELOG_RELEASE.md
+        if [ -f CHANGELOG.md ]; then
+          # 提取最新版本的变更日志
+          awk '/^## \[v/{if (p) exit; p=1} p' CHANGELOG.md >> CHANGELOG_RELEASE.md || true
+        fi
+        echo "" >> CHANGELOG_RELEASE.md
+        echo "### 构建信息" >> CHANGELOG_RELEASE.md
+        echo "- 构建时间: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> CHANGELOG_RELEASE.md
+        echo "- Git 提交: ${{ github.sha }}" >> CHANGELOG_RELEASE.md
+        echo "- Node.js 版本: 20.x" >> CHANGELOG_RELEASE.md
+
+    - name: 创建 Release
+      uses: softprops/action-gh-release@v2
+      with:
+        body_path: CHANGELOG_RELEASE.md
+        files: |
+          dist/card-framework.js
+          dist/card-framework.css
+          dist/core.js
+          dist/security.js
+          dist/render.js
+          dist/validation.js
+          dist/extras.js
+          dist/plugins.js
+          dist/perf.js
+          dist/loader.js
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

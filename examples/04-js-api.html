@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>04 - JS API 完整示例 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>⚡ JS API 完整示例</h1>
+    <p>CardFrame 实例的所有 API 方法演示 - 批量操作、导入导出、事件监听</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>📝 基础 CRUD</h3>
+        <button class="btn btn-primary" onclick="createCard()">创建卡片</button>
+        <button class="btn" onclick="updateCard()">更新卡片</button>
+        <button class="btn btn-danger" onclick="removeCard()">删除卡片</button>
+        <button class="btn" onclick="getCard()">获取卡片</button>
+        <button class="btn" onclick="getAllCards()">获取所有卡片</button>
+      </div>
+
+      <div class="section">
+        <h3>📦 批量操作</h3>
+        <button class="btn btn-primary" onclick="batchCreate()">批量创建 10 张</button>
+        <button class="btn btn-danger" onclick="batchRemove()">批量删除</button>
+      </div>
+
+      <div class="section">
+        <h3>💾 导入导出</h3>
+        <button class="btn" onclick="exportData()">导出 JSON</button>
+        <button class="btn" onclick="importData()">导入 JSON</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
+      </div>
+
+      <div class="section">
+        <h3>🔔 事件监听</h3>
+        <button class="btn" onclick="toggleEventLog()">{{ eventLogEnabled ? '关闭' : '开启' }}事件日志</button>
+        <div id="eventLog" class="event-log" style="display: none;">
+          <p class="log-title">事件日志：</p>
+          <div id="logContent" class="log-content"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>📊 状态</h3>
+        <p>卡片数量：<span id="cardCount">0</span></p>
+        <p>关系数量：<span id="relCount">0</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="JS API 完整示例">
+        <p>这个示例展示 CardFrame 的完整 JavaScript API。</p>
+        <br>
+        <p><strong>包含功能：</strong></p>
+        <ul>
+          <li>✅ 基础 CRUD 操作</li>
+          <li>✅ 批量创建和删除</li>
+          <li>✅ 数据导入导出</li>
+          <li>✅ 事件系统监听</li>
+        </ul>
+      </cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+    let eventLogEnabled = false;
+    let logCounter = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = new CardFrame('#cardContainer');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+    });
+
+    function updateStats() {
+      if (!frame) return;
+      document.getElementById('cardCount').textContent = frame.getAllCards().length;
+      document.getElementById('relCount').textContent = frame.store.getAllRelationships
+        ? frame.store.getAllRelationships().length
+        : 0;
+    }
+
+    function addLog(eventName, detail) {
+      if (!eventLogEnabled) return;
+      
+      logCounter++;
+      const logContent = document.getElementById('logContent');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${time}] ${eventName}`;
+      logContent.insertBefore(entry, logContent.firstChild);
+
+      if (logCounter > 50) {
+        logContent.removeChild(logContent.lastChild);
+      }
+    }
+
+    function toggleEventLog() {
+      eventLogEnabled = !eventLogEnabled;
+      const logEl = document.getElementById('eventLog');
+      logEl.style.display = eventLogEnabled ? 'block' : 'none';
+
+      const btn = event.target;
+      btn.textContent = eventLogEnabled ? '关闭事件日志' : '开启事件日志';
+
+      if (eventLogEnabled) {
+        frame.on(CardFrame.EVENT_TYPES.CARD_ADDED, (e) => addLog('CARD_ADDED', e.detail));
+        frame.on(CardFrame.EVENT_TYPES.CARD_REMOVED, (e) => addLog('CARD_REMOVED', e.detail));
+        frame.on(CardFrame.EVENT_TYPES.CARD_UPDATED, (e) => addLog('CARD_UPDATED', e.detail));
+      }
+    }
+
+    function createCard() {
+      const card = frame.createCard('text', {
+        title: `新卡片 ${Date.now()}`,
+        content: '这是通过 JS API 创建的卡片'
+      });
+      console.log('创建的卡片:', card);
+    }
+
+    function updateCard() {
+      const cards = frame.getAllCards();
+      if (cards.length === 0) {
+        alert('没有卡片可更新');
+        return;
+      }
+
+      const card = cards[cards.length - 1];
+      frame.updateCard(card.id, {
+        title: card.props.title + ' (已更新)'
+      });
+    }
+
+    function removeCard() {
+      const cards = frame.getAllCards();
+      if (cards.length === 0) {
+        alert('没有卡片可删除');
+        return;
+      }
+
+      const card = cards[cards.length - 1];
+      frame.removeCard(card.id);
+    }
+
+    function getCard() {
+      const cards = frame.getAllCards();
+      if (cards.length === 0) {
+        alert('没有卡片');
+        return;
+      }
+
+      const card = frame.getCard(cards[0].id);
+      console.log('获取的卡片:', card);
+      alert('卡片数据已输出到控制台');
+    }
+
+    function getAllCards() {
+      const cards = frame.getAllCards();
+      console.log('所有卡片:', cards);
+      alert(`共有 ${cards.length} 张卡片，详情请查看控制台`);
+    }
+
+    function batchCreate() {
+      const cardsData = [];
+      for (let i = 0; i < 10; i++) {
+        cardsData.push({
+          type: 'text',
+          props: {
+            title: `批量卡片 ${i + 1}`,
+            content: `这是第 ${i + 1} 张批量创建的卡片`
+          }
+        });
+      }
+
+      const result = frame.batchCreateCards(cardsData);
+      alert(`批量创建完成：成功 ${result.success.length} 张，失败 ${result.errors.length} 张`);
+    }
+
+    function batchRemove() {
+      const cards = frame.getAllCards();
+      if (cards.length === 0) {
+        alert('没有卡片可删除');
+        return;
+      }
+
+      const idsToRemove = cards.slice(0, Math.min(5, cards.length)).map(c => c.id);
+      const result = frame.batchRemoveCards(idsToRemove);
+      alert(`批量删除完成：成功 ${result.success.length} 张，失败 ${result.errors.length} 张`);
+    }
+
+    function exportData() {
+      const data = frame.toJSON();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cardframe-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData() {
+      document.getElementById('importFile').click();
+    }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          const result = frame.importData(data, { mode: 'merge' });
+          alert(`导入成功！\n导入卡片：${result.importedCards}\n导入关系：${result.importedRelationships}`);
+        } catch (err) {
+          alert('导入失败：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .event-log {
+      margin-top: 12px;
+      background: #fafafa;
+      border-radius: 4px;
+      padding: 8px;
+    }
+
+    .log-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .log-content {
+      max-height: 150px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+    }
+
+    .log-entry {
+      padding: 3px 6px;
+      color: #555;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</body>
+</html>

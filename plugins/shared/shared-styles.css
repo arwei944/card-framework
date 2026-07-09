@@ -1,0 +1,396 @@
+/**
+ * CardFrame Shared Styles - 公共样式
+ * 所有项目共享的卡片样式
+ * @version 1.0.0
+ */
+
+/* ===== 基础卡片样式 ===== */
+.cf-tailwind-card {
+  background: var(--cf-card-bg, #fff);
+  border: 1px solid var(--cf-card-border, rgba(0,0,0,0.1));
+  box-shadow: var(--cf-card-shadow, 0 2px 4px rgba(0,0,0,0.05));
+  font-family: var(--cf-font-sans, system-ui, sans-serif);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.cf-tailwind-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* 宽度变体 */
+.cf-span-1 {
+  grid-column: span 1;
+}
+.cf-span-2 {
+  grid-column: span 2;
+}
+
+/* ===== 卡片头部 ===== */
+.cf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cf-border, #e5e5e5);
+  cursor: grab;
+  user-select: none;
+}
+
+.cf-card-header:active {
+  cursor: grabbing;
+}
+
+.cf-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-card-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cf-text-primary, #0a0a0a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cf-badge {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--cf-bg-200, #f5f5f5);
+  color: var(--cf-text-secondary, #6e6e6e);
+  flex-shrink: 0;
+}
+
+.cf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.cf-btn-minimize,
+.cf-btn-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  cursor: pointer;
+  color: var(--cf-text-tertiary, #a0a0a0);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.cf-btn-minimize:hover,
+.cf-btn-close:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-action-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--cf-border, #e5e5e5);
+  background: var(--cf-bg-100, #fff);
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  cursor: pointer;
+  color: var(--cf-text-secondary, #6e6e6e);
+  transition: all 0.15s ease;
+}
+
+.cf-action-btn:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+/* ===== 聊天消息 ===== */
+.cf-chat-message {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.cf-msg-ai {
+  flex-direction: row;
+}
+
+.cf-msg-user {
+  flex-direction: row-reverse;
+}
+
+.cf-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  background: var(--cf-bg-200, #f5f5f5);
+  flex-shrink: 0;
+}
+
+.cf-msg-content {
+  max-width: 80%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--cf-radius, 0.5rem);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cf-msg-ai .cf-msg-content {
+  background: var(--cf-bg-200, #f5f5f5);
+  color: var(--cf-text-primary, #0a0a0a);
+  border-top-left-radius: 0.25rem;
+}
+
+.cf-msg-user .cf-msg-content {
+  background: var(--cf-blue-700, #2563eb);
+  color: #fff;
+  border-top-right-radius: 0.25rem;
+}
+
+.cf-msg-text {
+  word-break: break-word;
+}
+
+.cf-msg-time {
+  font-size: 0.6875rem;
+  opacity: 0.6;
+  margin-top: 0.25rem;
+}
+
+/* ===== 任务项 ===== */
+.cf-task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  transition: background 0.15s ease;
+}
+
+.cf-task-item:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.cf-task-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cf-green-700, #059669);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cf-task-text {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-task-done {
+  text-decoration: line-through;
+  color: var(--cf-text-tertiary, #a0a0a0);
+}
+
+.cf-task-time {
+  font-size: 0.75rem;
+  color: var(--cf-text-tertiary, #a0a0a0);
+  flex-shrink: 0;
+}
+
+.cf-priority-high { border-left: 3px solid var(--cf-red-700, #dc2626); }
+.cf-priority-medium { border-left: 3px solid var(--cf-amber-700, #d97706); }
+.cf-priority-low { border-left: 3px solid var(--cf-blue-700, #2563eb); }
+
+/* ===== 知识库项 ===== */
+.cf-kb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--cf-radius-sm, 0.375rem);
+  transition: background 0.15s ease;
+}
+
+.cf-kb-item:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+.cf-kb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cf-kb-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--cf-text-primary, #0a0a0a);
+}
+
+.cf-kb-status {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.cf-status-\u5df2\u5ba1\u6838 {
+  background: var(--cf-blue-100, #eff6ff);
+  color: var(--cf-blue-700, #2563eb);
+}
+
+.cf-status-\u5f85\u5ba1\u6838 {
+  background: var(--cf-amber-100, #fffbeb);
+  color: var(--cf-amber-700, #d97706);
+}
+
+.cf-status-\u5df2\u9a73\u56de {
+  background: var(--cf-red-100, #fef2f2);
+  color: var(--cf-red-700, #dc2626);
+}
+
+/* ===== 能力维度条 ===== */
+.cf-dimension-bar {
+  padding: 0.5rem 0.75rem;
+}
+
+.cf-dim-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--cf-text-secondary, #6e6e6e);
+  margin-bottom: 0.25rem;
+}
+
+.cf-dim-track {
+  height: 6px;
+  background: var(--cf-bg-300, #ebebeb);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.cf-dim-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+
+/* ===== 进度条 ===== */
+.cf-progress-wrap {
+  padding: 0.75rem 1rem;
+}
+
+.cf-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--cf-text-secondary, #6e6e6e);
+  margin-bottom: 0.375rem;
+}
+
+.cf-progress-track {
+  height: 8px;
+  background: var(--cf-bg-300, #ebebeb);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.cf-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* ===== 拖拽状态 ===== */
+.cf-dragging {
+  opacity: 0.9;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+}
+
+.cf-card-placeholder {
+  background: var(--cf-bg-200, #f5f5f5);
+  border: 2px dashed var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  margin-bottom: 1rem;
+}
+
+/* ===== 最小化状态 ===== */
+.cf-minimized .cf-card-body {
+  display: none;
+}
+
+/* ===== 添加卡片下拉菜单 ===== */
+.cf-add-card-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.cf-add-card-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 180px;
+  background: var(--cf-card-bg, #fff);
+  border: 1px solid var(--cf-border, #e5e5e5);
+  border-radius: var(--cf-radius, 0.5rem);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  padding: 0.25rem 0;
+  display: none;
+}
+
+.cf-add-card-menu.active {
+  display: block;
+}
+
+.cf-add-card-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--cf-text-primary, #0a0a0a);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cf-add-card-item:hover {
+  background: var(--cf-bg-200, #f5f5f5);
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .cf-span-2 {
+    grid-column: span 1;
+  }
+
+  .cf-card-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .cf-chat-message {
+    padding: 0.375rem 0.5rem;
+  }
+}

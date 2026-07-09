@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Workstation - Discovery</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:var(--cf-bg-100,#0f172a);color:var(--cf-text-primary,#f1f5f9);min-height:100vh}
+    .cw-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--cf-border)}
+    .cw-nav{display:flex;gap:.5rem}
+    .cw-nav a{padding:.5rem 1rem;color:var(--cf-text-secondary);text-decoration:none;border-radius:.5rem;font-size:.875rem}
+    .cw-nav a.active{background:var(--cf-primary);color:#fff}
+    .theme-switcher{display:flex;gap:.5rem}
+    .theme-btn{padding:.25rem .75rem;border:1px solid var(--cf-border);background:transparent;color:var(--cf-text-secondary);border-radius:.25rem;cursor:pointer;font-size:.75rem}
+    .theme-btn:hover{background:var(--cf-bg-200)}
+    .cw-grid{display:grid;grid-template-columns:280px 1fr 1fr;gap:1rem;padding:1.5rem;max-width:1400px;margin:0 auto}
+    .cw-asset-list{grid-column:span 2;display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+    @media(max-width:768px){.cw-grid{grid-template-columns:1fr}.cw-asset-list{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="cw-header">
+    <h2>Crypto Workstation</h2>
+    <nav class="cw-nav">
+      <a href="crypto-workstation-trading.html">Trading</a>
+      <a href="crypto-workstation-analysis.html">Analysis</a>
+      <a href="crypto-workstation-strategy.html">Strategy</a>
+      <a href="crypto-workstation-discovery.html" class="active">Discovery</a>
+      <a href="crypto-workstation-management.html">Management</a>
+    </nav>
+    <div class="theme-switcher">
+      <button class="theme-btn" data-theme="deep-space">Deep</button>
+      <button class="theme-btn" data-theme="industrial">Ind</button>
+      <button class="theme-btn" data-theme="mint">Mint</button>
+      <button class="theme-btn" data-theme="neon">Neon</button>
+      <button class="theme-btn" data-theme="platinum">Plat</button>
+    </div>
+  </header>
+  <div id="cardContainer" class="cw-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../crypto-workstation/crypto-workstation-core.js"></script>
+  <script>
+    (function(){
+      const c = document.getElementById('cardContainer');
+      const f = new CardFrame(c, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(f.typeRegistry);
+      CardFrameTailwindIntegration.install(f, { project:'crypto-workstation' });
+      CardFrameCryptoWorkstationCore.install(f, { page:'discovery' });
+      CardFrameSharedInteractions.install(f);
+      f.themeManager.applyTheme('deep-space');
+
+      // 筛选面板
+      f.addCard({
+        id: 'fp1', type: 'filter-panel',
+        props: {
+          title: '筛选', span: 'span-1',
+          categories: ['DeFi', 'Layer1', 'NFT', 'AI', 'Gaming', 'Stablecoin'],
+          selectedCategories: ['DeFi', 'AI'],
+          sortBy: 'change24h-desc',
+          priceRange: { min: 0, max: 100000 }
+        }
+      });
+
+      // 资产列表（用 asset-card）
+      const assets = [
+        { id: 'a1', symbol: 'BTC', name: 'Bitcoin', price: 43250.50, change24h: 2.35 },
+        { id: 'a2', symbol: 'ETH', name: 'Ethereum', price: 2650.20, change24h: -0.85 },
+        { id: 'a3', symbol: 'SOL', name: 'Solana', price: 95.30, change24h: 5.20 },
+        { id: 'a4', symbol: 'AVAX', name: 'Avalanche', price: 35.80, change24h: 3.10 },
+        { id: 'a5', symbol: 'LINK', name: 'Chainlink', price: 15.45, change24h: 1.20 },
+        { id: 'a6', symbol: 'UNI', name: 'Uniswap', price: 8.75, change24h: -2.15 }
+      ];
+      assets.forEach(a => {
+        f.addCard({ id: a.id, type: 'asset-card', props: { title: a.name, symbol: a.symbol, name: a.name, price: a.price, change24h: a.change24h, span: 'span-1' } });
+      });
+
+      // 资产详情
+      f.addCard({
+        id: 'ad1', type: 'asset-detail',
+        props: {
+          title: '资产详情', span: 'span-1',
+          symbol: 'BTC', name: 'Bitcoin', price: 43250.50, change24h: 2.35,
+          volume: '28.5B', marketCap: '847.2B',
+          description: '比特币是第一个去中心化的加密货币，由中本聪于2009年创立。它使用区块链技术实现点对点交易，无需中央银行或单一管理者。'
+        }
+      });
+
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => f.themeManager.applyTheme(btn.dataset.theme));
+      });
+      window.cwFrame = f;
+    })();
+  </script>
+</body>
+</html>

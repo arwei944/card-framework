@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>10 - 虚拟滚动与性能 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>⚡ 虚拟滚动与性能</h1>
+    <p>1000 张卡片性能演示、虚拟滚动开关、性能数据展示</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>生成测试数据</h3>
+        <div class="form-group">
+          <label>卡片数量：</label>
+          <select id="cardCountSelect">
+            <option value="100">100 张</option>
+            <option value="500">500 张</option>
+            <option value="1000" selected>1000 张</option>
+            <option value="2000">2000 张</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="generateCards()">生成卡片</button>
+        <button class="btn btn-danger" onclick="clearCards()">清空卡片</button>
+      </div>
+
+      <div class="section">
+        <h3>虚拟滚动</h3>
+        <label class="switch-label">
+          <input type="checkbox" id="virtualScrollToggle" checked onchange="toggleVirtualScroll()">
+          <span>启用虚拟滚动</span>
+        </label>
+        <p class="hint">仅渲染可视区域内的卡片</p>
+      </div>
+
+      <div class="section">
+        <h3>性能数据</h3>
+        <div class="perf-stats">
+          <div class="perf-row">
+            <span>总卡片数：</span>
+            <span id="totalCards" class="perf-value">0</span>
+          </div>
+          <div class="perf-row">
+            <span>渲染卡片数：</span>
+            <span id="renderedCards" class="perf-value">0</span>
+          </div>
+          <div class="perf-row">
+            <span>生成耗时：</span>
+            <span id="genTime" class="perf-value">0 ms</span>
+          </div>
+          <div class="perf-row">
+            <span>FPS：</span>
+            <span id="fpsCounter" class="perf-value">60</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>性能测试</h3>
+        <button class="btn" onclick="startPerfTest()">滚动性能测试</button>
+        <p class="hint">自动滚动测试帧率</p>
+      </div>
+
+      <div class="section">
+        <h3>说明</h3>
+        <ul class="tip-list">
+          <li>大量数据时开启虚拟滚动</li>
+          <li>虚拟滚动只渲染可见区域</li>
+          <li>滚动时平滑过渡</li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="⚡ 虚拟滚动性能演示">
+        <p>这个示例展示大量卡片时的性能优化。</p>
+        <br>
+        <p><strong>虚拟滚动原理：</strong></p>
+        <ul>
+          <li>只渲染视口内的卡片</li>
+          <li>滚动时动态加载/卸载</li>
+          <li>大幅减少 DOM 节点数量</li>
+          <li>提升滚动流畅度</li>
+        </ul>
+        <br>
+        <p>点击左侧「生成卡片」开始测试！</p>
+      </cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let fps = 60;
+    let perfTestRunning = false;
+    let virtualScrollEnabled = true;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      updatePerfStats();
+      startFpsCounter();
+
+      frame.store.subscribe(() => {
+        updatePerfStats();
+      });
+    });
+
+    function startFpsCounter() {
+      function countFps() {
+        frameCount++;
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+          fps = Math.round(frameCount * 1000 / (now - lastTime));
+          document.getElementById('fpsCounter').textContent = fps;
+          frameCount = 0;
+          lastTime = now;
+        }
+        requestAnimationFrame(countFps);
+      }
+      requestAnimationFrame(countFps);
+    }
+
+    function updatePerfStats() {
+      if (!frame) return;
+      
+      const total = frame.getAllCards().length;
+      document.getElementById('totalCards').textContent = total;
+
+      const container = document.getElementById('cardContainer');
+      const rendered = container.querySelectorAll('cf-card').length;
+      document.getElementById('renderedCards').textContent = rendered;
+    }
+
+    function generateCards() {
+      const count = parseInt(document.getElementById('cardCountSelect').value);
+      const startTime = performance.now();
+
+      const cardsData = [];
+      const types = ['text', 'task'];
+      const priorities = ['high', 'medium', 'low'];
+
+      for (let i = 0; i < count; i++) {
+        const type = types[i % types.length];
+        const cardData = {
+          type,
+          props: {
+            title: `卡片 #${i + 1} - ${type === 'text' ? '文本' : '任务'}`,
+            content: type === 'text' 
+              ? `这是第 ${i + 1} 张卡片的内容，用于测试虚拟滚动性能。卡片编号：${i + 1}` 
+              : undefined
+          }
+        };
+
+        if (type === 'task') {
+          cardData.props.priority = priorities[i % priorities.length];
+        }
+
+        cardsData.push(cardData);
+      }
+
+      clearCards();
+
+      requestAnimationFrame(() => {
+        const result = frame.batchCreateCards(cardsData);
+        const endTime = performance.now();
+        const duration = Math.round(endTime - startTime);
+
+        document.getElementById('genTime').textContent = duration + ' ms';
+        updatePerfStats();
+
+        alert(`生成完成！\n\n成功：${result.success.length} 张\n失败：${result.errors.length} 张\n耗时：${duration} ms`);
+      });
+    }
+
+    function clearCards() {
+      const cards = frame.getAllCards();
+      cards.forEach(card => {
+        frame.removeCard(card.id);
+      });
+      document.getElementById('genTime').textContent = '0 ms';
+      updatePerfStats();
+    }
+
+    function toggleVirtualScroll() {
+      virtualScrollEnabled = document.getElementById('virtualScrollToggle').checked;
+      
+      if (frame.virtualScroll) {
+        if (virtualScrollEnabled) {
+          frame.virtualScroll.enable();
+        } else {
+          frame.virtualScroll.disable();
+        }
+      }
+      
+      updatePerfStats();
+    }
+
+    function startPerfTest() {
+      if (perfTestRunning) {
+        alert('性能测试正在进行中...');
+        return;
+      }
+
+      const container = document.getElementById('cardContainer');
+      const scrollContainer = container.querySelector('.cf-scroll-container') || container;
+      const totalHeight = scrollContainer.scrollHeight || 20000;
+      
+      perfTestRunning = true;
+      const fpsSamples = [];
+      const duration = 3000;
+      const startTime = performance.now();
+      let lastFpsUpdate = startTime;
+      let framesInInterval = 0;
+
+      function measure() {
+        framesInInterval++;
+        const now = performance.now();
+        
+        if (now - lastFpsUpdate >= 100) {
+          const currentFps = Math.round(framesInInterval * 1000 / (now - lastFpsUpdate));
+          fpsSamples.push(currentFps);
+          framesInInterval = 0;
+          lastFpsUpdate = now;
+        }
+
+        const progress = (now - startTime) / duration;
+        
+        if (progress < 1) {
+          const scrollTop = Math.sin(progress * Math.PI * 2) * (totalHeight - 600) / 2 + (totalHeight - 600) / 2;
+          scrollContainer.scrollTop = scrollTop;
+          requestAnimationFrame(measure);
+        } else {
+          perfTestRunning = false;
+          const avgFps = fpsSamples.length > 0 
+            ? Math.round(fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length)
+            : 0;
+          const minFps = fpsSamples.length > 0 ? Math.min(...fpsSamples) : 0;
+          
+          alert(
+            `性能测试完成！\n\n` +
+            `平均 FPS：${avgFps}\n` +
+            `最低 FPS：${minFps}\n` +
+            `采样次数：${fpsSamples.length}\n\n` +
+            `虚拟滚动：${virtualScrollEnabled ? '开启' : '关闭'}`
+          );
+        }
+      }
+
+      requestAnimationFrame(measure);
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .switch-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      user-select: none;
+    }
+
+    .switch-label input {
+      width: auto;
+    }
+
+    .perf-stats {
+      background: #fafafa;
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .perf-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .perf-row:last-child {
+      border-bottom: none;
+    }
+
+    .perf-value {
+      font-weight: 600;
+      color: #2196f3;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .tip-list {
+      font-size: 13px;
+      color: #666;
+      padding-left: 20px;
+      line-height: 1.8;
+    }
+
+    .card-container {
+      flex: 1;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+
+      .card-container {
+        height: 500px;
+      }
+    }
+  </style>
+</body>
+</html>

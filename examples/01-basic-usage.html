@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>01 - 基础用法 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>📝 基础用法</h1>
+    <p>最简单的卡片 CRUD 示例 - 添加文本卡、任务卡，删除卡片</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>添加卡片</h3>
+        <div class="form-group">
+          <label>类型：</label>
+          <select id="cardType">
+            <option value="text">文本卡</option>
+            <option value="task">任务卡</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>标题：</label>
+          <input type="text" id="cardTitle" placeholder="输入卡片标题">
+        </div>
+        <div class="form-group" id="priorityGroup" style="display: none;">
+          <label>优先级：</label>
+          <select id="cardPriority">
+            <option value="high">高</option>
+            <option value="medium" selected>中</option>
+            <option value="low">低</option>
+          </select>
+        </div>
+        <div class="form-group" id="contentGroup">
+          <label>内容：</label>
+          <textarea id="cardContent" placeholder="输入卡片内容"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="addCard()">添加卡片</button>
+      </div>
+
+      <div class="section">
+        <h3>操作说明</h3>
+        <ul class="tip-list">
+          <li>点击卡片右上角 × 删除卡片</li>
+          <li>文本卡支持富文本内容</li>
+          <li>任务卡有优先级标识</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>状态</h3>
+        <p>卡片数量：<span id="cardCount">0</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="欢迎使用 CardFrame">
+        <p>这是一个基础用法示例，展示最常用的卡片操作。</p>
+        <br>
+        <p><strong>核心功能：</strong></p>
+        <ul>
+          <li>✅ 创建文本卡和任务卡</li>
+          <li>✅ 删除卡片</li>
+          <li>✅ 响应式布局</li>
+        </ul>
+      </cf-card>
+
+      <cf-card type="task" title="学习 CardFrame" priority="high"></cf-card>
+      <cf-card type="task" title="完成第一个项目" priority="medium"></cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+
+      document.getElementById('cardType').addEventListener('change', (e) => {
+        const type = e.target.value;
+        document.getElementById('priorityGroup').style.display = type === 'task' ? 'block' : 'none';
+      });
+    });
+
+    function updateStats() {
+      if (frame) {
+        document.getElementById('cardCount').textContent = frame.getAllCards().length;
+      }
+    }
+
+    function addCard() {
+      const type = document.getElementById('cardType').value;
+      const title = document.getElementById('cardTitle').value.trim();
+      const content = document.getElementById('cardContent').value.trim();
+      const priority = document.getElementById('cardPriority').value;
+
+      if (!title) {
+        alert('请输入标题');
+        return;
+      }
+
+      const props = { title };
+      if (content) props.content = content;
+      if (type === 'task') props.priority = priority;
+
+      frame.createCard(type, props);
+
+      document.getElementById('cardTitle').value = '';
+      document.getElementById('cardContent').value = '';
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 280px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .tip-list {
+      font-size: 13px;
+      color: #666;
+      padding-left: 20px;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</body>
+</html>

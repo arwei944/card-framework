@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>07 - 主题系统 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎨 主题系统</h1>
+    <p>亮色/暗色主题切换、系统主题跟随、自定义主题注册</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>主题切换</h3>
+        <button class="btn" onclick="setTheme('light')">☀️ 亮色主题</button>
+        <button class="btn" onclick="setTheme('dark')">🌙 暗色主题</button>
+        <button class="btn btn-primary" onclick="toggleTheme()">🔄 切换主题</button>
+      </div>
+
+      <div class="section">
+        <h3>系统主题</h3>
+        <button class="btn" onclick="followSystemTheme()">📱 跟随系统</button>
+        <p class="hint">自动检测系统主题设置</p>
+      </div>
+
+      <div class="section">
+        <h3>自定义主题</h3>
+        <button class="btn btn-primary" onclick="registerCustomTheme()">注册海洋主题</button>
+        <button class="btn" onclick="applyCustomTheme()">应用海洋主题</button>
+        <button class="btn" onclick="listThemes()">列出所有主题</button>
+      </div>
+
+      <div class="section">
+        <h3>主题事件</h3>
+        <button class="btn" onclick="toggleThemeLog()">{{ themeLogEnabled ? '关闭' : '开启' }}主题日志</button>
+        <div id="themeLog" class="log-box" style="display: none;">
+          <p class="log-title">主题变更记录：</p>
+          <div id="logContent" class="log-content"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>当前状态</h3>
+        <p>当前主题：<span id="currentTheme" class="theme-badge">light</span></p>
+        <p>主题来源：<span id="themeSource">default</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="主题系统演示">
+        <p>CardFrame 支持灵活的主题系统。</p>
+        <br>
+        <p><strong>主题特性：</strong></p>
+        <ul>
+          <li>☀️ 内置亮色主题</li>
+          <li>🌙 内置暗色主题</li>
+          <li>📱 跟随系统主题</li>
+          <li>🎨 自定义主题注册</li>
+        </ul>
+      </cf-card>
+
+      <cf-card type="task" title="试试切换主题" priority="high"></cf-card>
+      <cf-card type="task" title="注册自定义主题" priority="medium"></cf-card>
+      <cf-card type="progress" title="主题适配进度" value="100" max="100" unit="%"></cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+    let themeLogEnabled = false;
+    let customThemeRegistered = false;
+
+    const oceanTheme = {
+      name: 'ocean',
+      displayName: '海洋主题',
+      colors: {
+        primary: '#0288d1',
+        primaryLight: '#4fc3f7',
+        primaryDark: '#01579b',
+        background: '#e3f2fd',
+        surface: '#ffffff',
+        text: '#0d47a1',
+        textSecondary: '#1565c0',
+        border: '#90caf9',
+        success: '#2e7d32',
+        warning: '#ed6c02',
+        error: '#d32f2f',
+        info: '#0288d1'
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      updateThemeInfo();
+
+      frame.on(CardFrame.EVENT_TYPES.THEME_CHANGED, (e) => {
+        addThemeLog(e.detail.theme, e.detail.source);
+        updateThemeInfo();
+      });
+    });
+
+    function updateThemeInfo() {
+      if (!frame || !frame.themeManager) return;
+      
+      const currentTheme = frame.themeManager.getCurrentTheme();
+      document.getElementById('currentTheme').textContent = currentTheme;
+      document.getElementById('currentTheme').className = 'theme-badge ' + currentTheme;
+    }
+
+    function setTheme(theme) {
+      if (frame.themeManager) {
+        frame.themeManager.setTheme(theme);
+      }
+    }
+
+    function toggleTheme() {
+      if (frame.themeManager) {
+        frame.themeManager.toggleTheme();
+      }
+    }
+
+    function followSystemTheme() {
+      if (frame.themeManager) {
+        frame.themeManager.followSystemTheme();
+        document.getElementById('themeSource').textContent = 'system';
+      }
+    }
+
+    function registerCustomTheme() {
+      if (customThemeRegistered) {
+        alert('海洋主题已注册');
+        return;
+      }
+
+      if (frame.themeManager && frame.themeManager.registerTheme) {
+        frame.themeManager.registerTheme(oceanTheme);
+        customThemeRegistered = true;
+        alert('海洋主题注册成功！');
+      } else {
+        alert('主题注册 API 不可用');
+      }
+    }
+
+    function applyCustomTheme() {
+      if (!customThemeRegistered) {
+        alert('请先注册海洋主题');
+        return;
+      }
+
+      if (frame.themeManager) {
+        frame.themeManager.setTheme('ocean');
+        document.getElementById('themeSource').textContent = 'custom';
+      }
+    }
+
+    function listThemes() {
+      if (frame.themeManager && frame.themeManager.getAvailableThemes) {
+        const themes = frame.themeManager.getAvailableThemes();
+        console.log('可用主题:', themes);
+        alert(`可用主题：${themes.map(t => t.name || t).join('、')}\n详情请查看控制台`);
+      } else {
+        alert('获取主题列表 API 不可用');
+      }
+    }
+
+    function toggleThemeLog() {
+      themeLogEnabled = !themeLogEnabled;
+      const logEl = document.getElementById('themeLog');
+      logEl.style.display = themeLogEnabled ? 'block' : 'none';
+
+      const btn = event.target;
+      btn.textContent = themeLogEnabled ? '关闭主题日志' : '开启主题日志';
+    }
+
+    function addThemeLog(theme, source) {
+      if (!themeLogEnabled) return;
+
+      const logContent = document.getElementById('logContent');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${time}] 切换到 ${theme} (来源: ${source || 'manual'})`;
+      logContent.insertBefore(entry, logContent.firstChild);
+
+      if (logContent.children.length > 20) {
+        logContent.removeChild(logContent.lastChild);
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      transition: background-color 0.3s;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .theme-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .theme-badge.light {
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+
+    .theme-badge.dark {
+      background-color: #37474f;
+      color: #eceff1;
+    }
+
+    .theme-badge.ocean {
+      background-color: #e3f2fd;
+      color: #0d47a1;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .log-box {
+      margin-top: 12px;
+      background: #fafafa;
+      border-radius: 4px;
+      padding: 8px;
+    }
+
+    .log-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .log-content {
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+    }
+
+    .log-entry {
+      padding: 3px 6px;
+      color: #555;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: background-color 0.3s;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</body>
+</html>

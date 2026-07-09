@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CardFrame v0.2 - 通用卡片框架示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css?v=11">
+</head>
+<body>
+  <header class="app-header">
+    <h1>CardFrame v0.2</h1>
+    <p>通用卡片前端框架 - Phase 2 演示</p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section examples-nav">
+        <h3>📚 示例导航</h3>
+        <div class="example-list">
+          <a href="01-basic-usage.html" class="example-item">
+            <span class="example-num">01</span>
+            <span class="example-title">基础用法</span>
+          </a>
+          <a href="02-declarative-html.html" class="example-item">
+            <span class="example-num">02</span>
+            <span class="example-title">声明式 HTML</span>
+          </a>
+          <a href="03-dom-manipulation.html" class="example-item">
+            <span class="example-num">03</span>
+            <span class="example-title">DOM 操作</span>
+          </a>
+          <a href="04-js-api.html" class="example-item">
+            <span class="example-num">04</span>
+            <span class="example-title">JS API</span>
+          </a>
+          <a href="05-canvas-mode.html" class="example-item">
+            <span class="example-num">05</span>
+            <span class="example-title">画布模式</span>
+          </a>
+          <a href="06-relationships.html" class="example-item">
+            <span class="example-num">06</span>
+            <span class="example-title">关系引擎</span>
+          </a>
+          <a href="07-themes.html" class="example-item">
+            <span class="example-num">07</span>
+            <span class="example-title">主题系统</span>
+          </a>
+          <a href="08-i18n.html" class="example-item">
+            <span class="example-num">08</span>
+            <span class="example-title">国际化</span>
+          </a>
+          <a href="09-plugins.html" class="example-item">
+            <span class="example-num">09</span>
+            <span class="example-title">插件开发</span>
+          </a>
+          <a href="10-virtual-scroll.html" class="example-item">
+            <span class="example-num">10</span>
+            <span class="example-title">虚拟滚动</span>
+          </a>
+          <a href="11-security.html" class="example-item">
+            <span class="example-num">11</span>
+            <span class="example-title">安全防护</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>添加卡片</h3>
+        <div class="form-group">
+          <label>类型：</label>
+          <select id="cardType">
+            <option value="text">文本卡</option>
+            <option value="task">任务卡</option>
+            <option value="image">图片卡</option>
+            <option value="list">列表卡</option>
+            <option value="progress">进度卡</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>标题：</label>
+          <input type="text" id="cardTitle" placeholder="输入标题">
+        </div>
+        <div class="form-group" id="priorityGroup" style="display: none;">
+          <label>优先级：</label>
+          <select id="cardPriority">
+            <option value="high">高</option>
+            <option value="medium" selected>中</option>
+            <option value="low">低</option>
+          </select>
+        </div>
+        <div class="form-group" id="contentGroup">
+          <label>内容：</label>
+          <textarea id="cardContent" placeholder="输入内容"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="addCard()">添加卡片</button>
+      </div>
+
+      <div class="section">
+        <h3>布局模式</h3>
+        <button class="btn" onclick="setLayout('stream')">流式布局</button>
+        <button class="btn" onclick="setLayout('canvas')">画布模式</button>
+        <button class="btn" onclick="resetView()" id="resetBtn" style="display: none;">重置视图</button>
+        <p class="hint" id="canvasHint" style="display: none; font-size: 12px; color: #999; margin-top: 8px;">
+          提示：拖拽卡片移动位置<br>
+          按住 Ctrl + 滚轮缩放
+        </p>
+      </div>
+
+      <div class="section">
+        <h3>关系管理</h3>
+        <div class="form-group">
+          <label>源卡片ID：</label>
+          <input type="text" id="sourceId" placeholder="源卡片 ID">
+        </div>
+        <div class="form-group">
+          <label>目标卡片ID：</label>
+          <input type="text" id="targetId" placeholder="目标卡片 ID">
+        </div>
+        <button class="btn" onclick="addRelationship()">创建关系</button>
+        <button class="btn" onclick="showRelationships()">查看关系</button>
+      </div>
+
+      <div class="section">
+        <h3>操作</h3>
+        <button class="btn btn-danger" onclick="clearCards()">清空卡片</button>
+        <button class="btn" onclick="exportData()">导出数据</button>
+        <button class="btn" onclick="logCards()">查看数据</button>
+        <button class="btn" onclick="triggerTestError()">测试错误边界</button>
+      </div>
+
+      <div class="section">
+        <h3>反馈系统</h3>
+        <div class="form-group">
+          <label>输出级别：</label>
+          <select id="feedbackLevel" onchange="setFeedbackLevel(this.value)">
+            <option value="info">全部</option>
+            <option value="warn">警告+错误</option>
+            <option value="error">仅错误</option>
+            <option value="silent">静默</option>
+          </select>
+        </div>
+        <button class="btn" onclick="testValidation()">测试验证</button>
+      </div>
+
+      <div class="section">
+        <h3>主题系统</h3>
+        <button class="btn" onclick="toggleTheme()">切换主题</button>
+        <button class="btn" onclick="followSystemTheme()">跟随系统</button>
+        <p>当前主题：<span id="currentTheme">light</span></p>
+      </div>
+
+      <div class="section">
+        <h3>国际化</h3>
+        <div class="form-group">
+          <label>语言：</label>
+          <select id="languageSelect" onchange="changeLanguage(this.value)">
+            <option value="zh-CN">简体中文</option>
+            <option value="en-US">English</option>
+          </select>
+        </div>
+        <p>当前语言：<span id="currentLang">zh-CN</span></p>
+      </div>
+
+      <div class="section">
+        <h3>插件系统</h3>
+        <button class="btn" onclick="installDemoPlugin()">安装演示插件</button>
+        <button class="btn" onclick="uninstallDemoPlugin()">卸载演示插件</button>
+        <button class="btn" onclick="listPlugins()">列出插件</button>
+        <p>插件数量：<span id="pluginCount">0</span></p>
+      </div>
+
+      <div class="section">
+        <h3>关系引擎</h3>
+        <button class="btn" onclick="enableRelationships()">启用关系线</button>
+        <button class="btn" onclick="disableRelationships()">禁用关系线</button>
+      </div>
+
+      <div class="section">
+        <h3>数据导入导出</h3>
+        <button class="btn" onclick="exportData()">导出数据</button>
+        <button class="btn" onclick="importData()">导入数据</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">
+      </div>
+
+      <div class="section">
+        <h3>批量操作</h3>
+        <button class="btn" onclick="batchAddCards()">批量添加10张</button>
+        <button class="btn" onclick="batchRemoveCards()">批量删除</button>
+      </div>
+
+      <div class="section">
+        <h3>状态</h3>
+        <p>卡片数量：<span id="cardCount">0</span></p>
+        <p>布局模式：<span id="layoutMode">stream</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="欢迎使用 CardFrame v0.2">
+        <p>这是一个以卡片为核心的通用前端框架。</p>
+        <br>
+        <p><strong>Phase 2 新功能：</strong></p>
+        <ul>
+          <li>🔌 插件系统（可扩展架构）</li>
+          <li>🎨 主题系统（亮色/暗色/跟随系统）</li>
+          <li>🌍 国际化系统（中英文切换）</li>
+          <li>🔗 关系引擎（SVG 连线可视化）</li>
+          <li>⚡ 熔断机制（三级保护）</li>
+          <li>🔍 检测层增强（定时全量检查）</li>
+          <li>🔧 修复层增强（DOM/Store 同步修复）</li>
+          <li>📦 批量操作 & 导入导出</li>
+        </ul>
+      </cf-card>
+
+      <cf-card type="task" title="完成项目报告" priority="high"></cf-card>
+      <cf-card type="task" title="复习牛顿定律" priority="medium"></cf-card>
+      <cf-card type="task" title="整理文档" priority="low"></cf-card>
+
+      <cf-card type="image" title="示例图片" src="https://picsum.photos/400/200" alt="示例图片" caption="这是一张随机图片"></cf-card>
+
+      <cf-card type="progress" title="学习进度" value="65" max="100" unit="%"></cf-card>
+
+      <cf-card type="list" title="待办列表"></cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js?v=11"></script>
+  <script>
+    let frame;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+
+      frame.on(CardFrame.EVENT_TYPES.CARD_ADDED, () => updateStats());
+      frame.on(CardFrame.EVENT_TYPES.CARD_REMOVED, () => updateStats());
+      frame.on(CardFrame.EVENT_TYPES.LAYOUT_CHANGED, (e) => {
+        document.getElementById('layoutMode').textContent = e.detail.mode;
+        document.getElementById('resetBtn').style.display = e.detail.mode === 'canvas' ? 'inline-block' : 'none';
+        document.getElementById('canvasHint').style.display = e.detail.mode === 'canvas' ? 'block' : 'none';
+      });
+
+      document.getElementById('cardType').addEventListener('change', (e) => {
+        const type = e.target.value;
+        document.getElementById('priorityGroup').style.display = type === 'task' ? 'block' : 'none';
+      });
+    });
+
+    function updateStats() {
+      if (frame) {
+        document.getElementById('cardCount').textContent = frame.getAllCards().length;
+      }
+    }
+
+    function addCard() {
+      const type = document.getElementById('cardType').value;
+      const title = document.getElementById('cardTitle').value.trim();
+      const content = document.getElementById('cardContent').value.trim();
+      const priority = document.getElementById('cardPriority').value;
+
+      if (!title) {
+        alert('请输入标题');
+        return;
+      }
+
+      const props = { title };
+      if (content) props.content = content;
+      if (type === 'task') props.priority = priority;
+      if (type === 'image') props.src = 'https://picsum.photos/400/200';
+      if (type === 'progress') {
+        props.value = Math.floor(Math.random() * 100);
+        props.max = 100;
+      }
+
+      if (frame.layoutEngine.mode === 'canvas') {
+        props.position = {
+          x: Math.random() * 200 + 100,
+          y: Math.random() * 200 + 100
+        };
+      }
+
+      const card = frame.createCard(type, props);
+      console.log('创建的卡片:', card);
+
+      document.getElementById('cardTitle').value = '';
+      document.getElementById('cardContent').value = '';
+    }
+
+    function setLayout(mode) {
+      frame.setLayoutMode(mode);
+    }
+
+    function resetView() {
+      frame.layoutEngine.resetView();
+    }
+
+    function clearCards() {
+      if (confirm('确定要清空所有卡片吗？')) {
+        frame.getAllCards().forEach(card => {
+          frame.removeCard(card.id);
+        });
+      }
+    }
+
+    function exportData() {
+      const data = frame.toJSON();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'card-framework-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function logCards() {
+      console.log('=== 所有卡片 ===', frame.getAllCards());
+      console.log('=== 所有关系 ===', frame.store.getAllRelationships());
+      alert(`当前共有 ${frame.getAllCards().length} 张卡片，请查看控制台`);
+    }
+
+    function addRelationship() {
+      const sourceId = document.getElementById('sourceId').value.trim();
+      const targetId = document.getElementById('targetId').value.trim();
+
+      if (!sourceId || !targetId) {
+        alert('请输入源卡片和目标卡片 ID');
+        return;
+      }
+
+      const rel = frame.createRelationship(sourceId, targetId, 'reference');
+      console.log('创建的关系:', rel);
+      alert('关系创建成功，请查看控制台');
+    }
+
+    function showRelationships() {
+      const rels = frame.store.getAllRelationships();
+      console.log('所有关系:', rels);
+      alert(`当前共有 ${rels.length} 个关系，请查看控制台`);
+    }
+
+    function triggerTestError() {
+      frame.createCard('nonexistent-type', { title: '测试错误' });
+    }
+
+    function setFeedbackLevel(level) {
+      CardFrame.FeedbackSystem.setLevel(level);
+    }
+
+    function testValidation() {
+      const testCard = {
+        id: 'test_validation',
+        type: 'task',
+        props: {
+          title: '',
+          priority: 'invalid-value'
+        }
+      };
+      const result = frame.typeRegistry.validate(testCard);
+      console.log('验证结果:', result);
+      alert(`验证结果：${result.valid ? '通过' : '失败'}\n错误数：${result.errors.length}\n请查看控制台详情`);
+    }
+
+    function toggleTheme() {
+      frame.themeManager.toggleTheme();
+      document.getElementById('currentTheme').textContent = frame.themeManager.getCurrentTheme();
+    }
+
+    function followSystemTheme() {
+      frame.themeManager.followSystemTheme();
+      document.getElementById('currentTheme').textContent = frame.themeManager.getCurrentTheme();
+    }
+
+    function changeLanguage(lang) {
+      frame.i18n.setLocale(lang);
+      document.getElementById('currentLang').textContent = lang;
+      console.log('翻译测试:', frame.i18n.t('card.title.default'));
+    }
+
+    let demoPluginInstalled = false;
+    
+    const demoPlugin = {
+      name: 'demo-plugin',
+      version: '1.0.0',
+      description: '演示插件 - 展示插件系统功能',
+      author: 'CardFrame',
+      autoEnable: true,
+      
+      install(frame) {
+        console.log('演示插件已安装');
+        return {
+          greeting: 'Hello from Demo Plugin!'
+        };
+      },
+      
+      enable(frame, instance) {
+        console.log('演示插件已启用');
+      },
+      
+      disable(frame, instance) {
+        console.log('演示插件已禁用');
+      },
+      
+      uninstall(frame, instance) {
+        console.log('演示插件已卸载');
+      }
+    };
+
+    function installDemoPlugin() {
+      if (demoPluginInstalled) {
+        alert('演示插件已安装');
+        return;
+      }
+      frame.installPlugin(demoPlugin);
+      demoPluginInstalled = true;
+      updatePluginCount();
+      alert('演示插件安装成功！');
+    }
+
+    function uninstallDemoPlugin() {
+      if (!demoPluginInstalled) {
+        alert('演示插件未安装');
+        return;
+      }
+      frame.uninstallPlugin('demo-plugin');
+      demoPluginInstalled = false;
+      updatePluginCount();
+      alert('演示插件已卸载');
+    }
+
+    function listPlugins() {
+      const plugins = frame.getAllPlugins();
+      console.log('所有插件:', plugins);
+      alert(`当前安装了 ${plugins.length} 个插件，请查看控制台`);
+    }
+
+    function updatePluginCount() {
+      document.getElementById('pluginCount').textContent = frame.getAllPlugins().length;
+    }
+
+    function enableRelationships() {
+      frame.relationshipEngine.enable();
+      alert('关系线已启用，在画布模式下查看效果');
+    }
+
+    function disableRelationships() {
+      frame.relationshipEngine.disable();
+      alert('关系线已禁用');
+    }
+
+    function importData() {
+      document.getElementById('importFile').click();
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          const result = frame.importData(data, { mode: 'merge' });
+          alert(`导入成功！\n导入卡片：${result.importedCards}\n导入关系：${result.importedRelationships}`);
+        } catch (err) {
+          alert('导入失败：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function batchAddCards() {
+      const cards = [];
+      for (let i = 0; i < 10; i++) {
+        cards.push({
+          type: 'text',
+          props: {
+            title: `批量卡片 ${i + 1}`,
+            content: `这是第 ${i + 1} 张批量创建的卡片`
+          },
+          position: {
+            x: Math.random() * 400 + 50,
+            y: Math.random() * 400 + 50
+          }
+        });
+      }
+      const result = frame.batchCreateCards(cards);
+      alert(`批量创建完成：成功 ${result.success.length} 张，失败 ${result.errors.length} 张`);
+    }
+
+    function batchRemoveCards() {
+      const cards = frame.getAllCards();
+      if (cards.length === 0) {
+        alert('没有卡片可删除');
+        return;
+      }
+      
+      const idsToRemove = cards.slice(0, Math.min(5, cards.length)).map(c => c.id);
+      const result = frame.batchRemoveCards(idsToRemove);
+      alert(`批量删除完成：成功 ${result.success.length} 张，失败 ${result.errors.length} 张`);
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .examples-nav .example-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .examples-nav .example-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #333;
+      transition: background-color 0.2s;
+    }
+
+    .examples-nav .example-item:hover {
+      background-color: #f0f4ff;
+    }
+
+    .examples-nav .example-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .examples-nav .example-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</body>
+</html>

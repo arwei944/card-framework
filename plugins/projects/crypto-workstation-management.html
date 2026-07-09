@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Workstation - Management</title>
+  <link rel="stylesheet" href="../../src/card-framework.css">
+  <link rel="stylesheet" href="../shared/shared-styles.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:var(--cf-bg-100,#0f172a);color:var(--cf-text-primary,#f1f5f9);min-height:100vh}
+    .cw-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--cf-border)}
+    .cw-nav{display:flex;gap:.5rem}
+    .cw-nav a{padding:.5rem 1rem;color:var(--cf-text-secondary);text-decoration:none;border-radius:.5rem;font-size:.875rem}
+    .cw-nav a.active{background:var(--cf-primary);color:#fff}
+    .theme-switcher{display:flex;gap:.5rem}
+    .theme-btn{padding:.25rem .75rem;border:1px solid var(--cf-border);background:transparent;color:var(--cf-text-secondary);border-radius:.25rem;cursor:pointer;font-size:.75rem}
+    .theme-btn:hover{background:var(--cf-bg-200)}
+    .cw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;padding:1.5rem;max-width:1200px;margin:0 auto}
+    .cw-full{grid-column:span 2}
+    @media(max-width:768px){.cw-grid{grid-template-columns:1fr}.cw-full{grid-column:span 1}}
+  </style>
+</head>
+<body>
+  <header class="cw-header">
+    <h2>Crypto Workstation</h2>
+    <nav class="cw-nav">
+      <a href="crypto-workstation-trading.html">Trading</a>
+      <a href="crypto-workstation-analysis.html">Analysis</a>
+      <a href="crypto-workstation-strategy.html">Strategy</a>
+      <a href="crypto-workstation-discovery.html">Discovery</a>
+      <a href="crypto-workstation-management.html" class="active">Management</a>
+    </nav>
+    <div class="theme-switcher">
+      <button class="theme-btn" data-theme="deep-space">Deep</button>
+      <button class="theme-btn" data-theme="industrial">Ind</button>
+      <button class="theme-btn" data-theme="mint">Mint</button>
+      <button class="theme-btn" data-theme="neon">Neon</button>
+      <button class="theme-btn" data-theme="platinum">Plat</button>
+    </div>
+  </header>
+  <div id="cardContainer" class="cw-grid"></div>
+
+  <script src="../../src/card-framework.js"></script>
+  <script src="../shared/types.js"></script>
+  <script src="../shared/interactions.js"></script>
+  <script src="../shared/tailwind-integration.js"></script>
+  <script src="../crypto-workstation/crypto-workstation-core.js"></script>
+  <script>
+    (function(){
+      const c = document.getElementById('cardContainer');
+      const f = new CardFrame(c, { layoutMode:'stream' });
+      CardFrameSharedTypes.registerAll(f.typeRegistry);
+      CardFrameTailwindIntegration.install(f, { project:'crypto-workstation' });
+      CardFrameCryptoWorkstationCore.install(f, { page:'management' });
+      CardFrameSharedInteractions.install(f);
+      f.themeManager.applyTheme('deep-space');
+
+      // 账户概览
+      f.addCard({
+        id: 'acc1', type: 'account-summary',
+        props: { title: '账户概览', span: 'span-1', totalBalance: 125000, available: 85000, inOrder: 40000 }
+      });
+
+      // 持仓列表
+      f.addCard({
+        id: 'pos1', type: 'position-list',
+        props: {
+          title: '持仓列表', span: 'span-1',
+          positions: [
+            { symbol: 'BTC', size: 1.5, entryPrice: 40000, currentPrice: 43250.50, pnl: 4875.75, pnlPercent: 8.13 },
+            { symbol: 'ETH', size: 10, entryPrice: 2500, currentPrice: 2650.20, pnl: 1502.00, pnlPercent: 6.01 },
+            { symbol: 'SOL', size: 100, entryPrice: 88, currentPrice: 95.30, pnl: 730.00, pnlPercent: 8.30 },
+            { symbol: 'AVAX', size: 50, entryPrice: 38, currentPrice: 35.80, pnl: -110.00, pnlPercent: -5.79 }
+          ]
+        }
+      });
+
+      // 交易历史
+      f.addCard({
+        id: 'hist1', type: 'history-table',
+        props: {
+          title: '交易历史', span: 'span-2',
+          trades: [
+            { time: '2026-07-09 10:32', pair: 'BTC/USDT', side: 'buy', price: 43200, amount: 0.5, pnl: 25.25 },
+            { time: '2026-07-09 09:15', pair: 'ETH/USDT', side: 'sell', price: 2680, amount: 5, pnl: 900.00 },
+            { time: '2026-07-08 14:20', pair: 'SOL/USDT', side: 'buy', price: 92.5, amount: 20, pnl: 56.00 },
+            { time: '2026-07-08 11:45', pair: 'BTC/USDT', side: 'buy', price: 42800, amount: 1, pnl: 450.50 },
+            { time: '2026-07-07 16:30', pair: 'AVAX/USDT', side: 'sell', price: 37.2, amount: 30, pnl: -24.00 }
+          ]
+        }
+      });
+
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => f.themeManager.applyTheme(btn.dataset.theme));
+      });
+      window.cwFrame = f;
+    })();
+  </script>
+</body>
+</html>

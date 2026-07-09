@@ -1,0 +1,515 @@
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #e8e8e8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --border-color: #e0e0e0;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+  --success-color: #22c55e;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --card-hover-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  --transition-duration: 0.3s;
+  --transition-timing: ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  transition: background-color var(--transition-duration) var(--transition-timing),
+              color var(--transition-duration) var(--transition-timing),
+              border-color var(--transition-duration) var(--transition-timing),
+              box-shadow var(--transition-duration) var(--transition-timing);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.card-frame {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  min-height: 100vh;
+  background-color: var(--bg-secondary);
+  transition: background-color 0.3s ease;
+}
+
+.card-frame[data-theme="dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #3a3a3a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #707070;
+  --border-color: #404040;
+  --accent-color: #60a5fa;
+  --accent-hover: #3b82f6;
+  --success-color: #4ade80;
+  --warning-color: #fbbf24;
+  --error-color: #f87171;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --card-hover-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.card-frame.layout-stream {
+  display: grid;
+}
+
+.card-frame.layout-canvas {
+  display: block;
+  position: relative;
+  background: 
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  min-height: 100vh;
+  overflow: auto;
+  transform-origin: 0 0;
+}
+
+.relationship-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.relationship-line {
+  transition: stroke-width 0.2s ease, stroke 0.2s ease, opacity 0.3s ease;
+}
+
+.relationship-line:hover {
+  stroke-width: 3px;
+}
+
+/* 关系线渐入动画 */
+.relationship-line.appearing {
+  animation: relationship-fade-in 0.3s ease-out forwards;
+}
+
+@keyframes relationship-fade-in {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 100;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 关系线渐出动画 */
+.relationship-line.removing {
+  animation: relationship-fade-out 0.25s ease-in forwards;
+}
+
+@keyframes relationship-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    stroke-width: 0;
+  }
+}
+
+/* 关系标签样式 */
+.relationship-label {
+  font-size: 11px;
+  font-weight: 500;
+  fill: #fff;
+  text-anchor: middle;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: fill 0.2s ease;
+}
+
+.relationship-label-bg {
+  fill: #3b82f6;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, fill 0.2s ease;
+}
+
+.relationship-label:hover + .relationship-label-bg,
+.relationship-label-bg:hover {
+  opacity: 1;
+}
+
+/* 关系类型特定颜色 */
+.relationship-type-reference + .relationship-label-bg,
+g[data-relationship-id] .relationship-type-reference ~ .relationship-label-bg {
+  fill: #3b82f6;
+}
+.relationship-type-parent ~ .relationship-label-bg {
+  fill: #22c55e;
+}
+.relationship-type-child ~ .relationship-label-bg {
+  fill: #f59e0b;
+}
+.relationship-type-dependency ~ .relationship-label-bg {
+  fill: #ef4444;
+}
+.relationship-type-related ~ .relationship-label-bg {
+  fill: #8b5cf6;
+}
+
+.card {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-hover-shadow);
+}
+
+.card-dragging {
+  opacity: 0.8;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  cursor: grabbing;
+  transform: scale(1.02);
+  z-index: 1000;
+}
+
+.card-completed {
+  opacity: 0.6;
+}
+
+.card-completed .card-title {
+  text-decoration: line-through;
+}
+
+.card-header {
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fafafa;
+}
+
+.card-icon {
+  font-size: 18px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+  color: #333;
+}
+
+.card-body {
+  padding: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.card-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.card-priority-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.card-task.card-priority-high .card-priority-badge {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.card-task.card-priority-medium .card-priority-badge {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.card-task.card-priority-low .card-priority-badge {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.card-due-date {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+
+.card-text-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.card-image-container {
+  width: 100%;
+  max-height: 200px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.card-image-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  color: #999;
+  font-size: 14px;
+}
+
+.card-caption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #888;
+  text-align: center;
+}
+
+.card-list-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card-list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  color: #555;
+}
+
+.card-list-item:last-child {
+  border-bottom: none;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 13px;
+  color: #666;
+  text-align: right;
+}
+
+.card-error {
+  border: 2px solid #ef5350;
+  background: #fff5f5;
+}
+
+.card-error .card-header {
+  background: #ffebee;
+}
+
+.card-error .error-message {
+  color: #c62828;
+  font-weight: 500;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-complete {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn-complete:hover {
+  background-color: #43a047;
+}
+
+.btn-primary {
+  background-color: #2196f3;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1976d2;
+}
+
+.btn-danger {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #d32f2f;
+}
+
+.card-frame.layout-canvas .card {
+  width: 300px;
+  cursor: grab;
+  user-select: none;
+}
+
+.card-frame.layout-canvas .card:hover {
+  transform: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 600px) {
+  .card-frame {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 8px;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .card-frame {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.relationship-handle {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  cursor: crosshair;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: auto;
+}
+
+.relationship-handle:hover {
+  transform: translateY(-50%) scale(1.2);
+  background: #2563eb;
+}
+
+.card:hover .relationship-handle {
+  opacity: 1;
+}
+
+.card-relationship-target {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5), var(--card-hover-shadow) !important;
+  transform: scale(1.02);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.temp-relationship-line {
+  pointer-events: none;
+}
+
+.relationship-tooltip {
+  position: fixed;
+  background: rgba(0,0,0,0.85);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 10000;
+  pointer-events: none;
+  line-height: 1.6;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.relationship-tooltip strong {
+  color: #60a5fa;
+}
+
+.relationship-line {
+  transition: stroke-width 0.2s ease, stroke-opacity 0.2s ease;
+}
+
+.relationship-line:hover {
+  stroke-width: 4px !important;
+}
+
+[dir="rtl"] .card-frame {
+  direction: rtl;
+}
+
+[dir="rtl"] .card {
+  text-align: right;
+}
+
+[dir="rtl"] .card-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .card-footer {
+  justify-content: flex-start;
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .card-title {
+  text-align: right;
+}
+
+[dir="rtl"] .card-body {
+  text-align: right;
+}
+
+[dir="rtl"] .progress-text {
+  text-align: left;
+}
+
+[dir="rtl"] .card-list-item {
+  text-align: right;
+}
+
+[dir="rtl"] .card-caption {
+  text-align: center;
+}
+
+[dir="rtl"] .relationship-handle {
+  right: auto;
+  left: -8px;
+}
+
+[dir="rtl"] .card-frame.layout-canvas .card {
+  direction: rtl;
+}

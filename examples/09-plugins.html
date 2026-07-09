@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>09 - 插件开发 | CardFrame 示例</title>
+  <link rel="stylesheet" href="../src/card-framework.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🔌 插件开发</h1>
+    <p>最简单的插件示例、注册卡片类型、注册钩子</p>
+    <p><a href="index.html" class="back-link">← 返回示例列表</a></p>
+  </header>
+
+  <main class="app-main">
+    <aside class="control-panel">
+      <div class="section">
+        <h3>插件管理</h3>
+        <div class="plugin-list">
+          <div class="plugin-item">
+            <span class="plugin-name">hello-plugin</span>
+            <span class="plugin-badge" id="helloStatus">未安装</span>
+          </div>
+          <div class="plugin-item">
+            <span class="plugin-name">sticky-note</span>
+            <span class="plugin-badge" id="stickyStatus">未安装</span>
+          </div>
+          <div class="plugin-item">
+            <span class="plugin-name">counter-card</span>
+            <span class="plugin-badge" id="counterStatus">未安装</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="installAll()">全部安装</button>
+        <button class="btn btn-danger" onclick="uninstallAll()">全部卸载</button>
+      </div>
+
+      <div class="section">
+        <h3>便签卡类型</h3>
+        <div class="form-group">
+          <label>便签内容：</label>
+          <textarea id="stickyContent" placeholder="输入便签内容"></textarea>
+        </div>
+        <div class="form-group">
+          <label>颜色：</label>
+          <select id="stickyColor">
+            <option value="yellow">黄色</option>
+            <option value="green">绿色</option>
+            <option value="blue">蓝色</option>
+            <option value="pink">粉色</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addStickyNote()">添加便签卡</button>
+      </div>
+
+      <div class="section">
+        <h3>计数器卡类型</h3>
+        <div class="form-group">
+          <label>标题：</label>
+          <input type="text" id="counterTitle" placeholder="计数器标题" value="点击计数">
+        </div>
+        <button class="btn btn-primary" onclick="addCounterCard()">添加计数器卡</button>
+      </div>
+
+      <div class="section">
+        <h3>钩子演示</h3>
+        <button class="btn" onclick="testHook()">测试 beforeCreate 钩子</button>
+        <p class="hint">钩子会在卡片创建前修改标题</p>
+      </div>
+
+      <div class="section">
+        <h3>状态</h3>
+        <p>已安装插件：<span id="pluginCount">0</span></p>
+        <p>卡片总数：<span id="cardCount">0</span></p>
+      </div>
+    </aside>
+
+    <section class="card-container" id="cardContainer">
+      <cf-card type="text" title="🔌 插件开发演示">
+        <p>这个示例展示如何开发和使用 CardFrame 插件。</p>
+        <br>
+        <p><strong>包含三个演示插件：</strong></p>
+        <ul>
+          <li>👋 <strong>hello-plugin</strong> - 最简插件</li>
+          <li>📝 <strong>sticky-note</strong> - 自定义卡片类型</li>
+          <li>🔢 <strong>counter-card</strong> - 带交互的卡片类型</li>
+        </ul>
+        <br>
+        <p>点击「全部安装」开始体验！</p>
+      </cf-card>
+    </section>
+  </main>
+
+  <script src="../src/card-framework.js"></script>
+  <script>
+    let frame;
+
+    const helloPlugin = {
+      name: 'hello-plugin',
+      version: '1.0.0',
+      description: '最简单的插件示例',
+      author: 'Demo',
+      autoEnable: true,
+
+      install(frame) {
+        console.log('[hello-plugin] 安装中...');
+        return {
+          greeting: 'Hello from plugin!'
+        };
+      },
+
+      enable(frame, instance) {
+        console.log('[hello-plugin] 已启用');
+        console.log(instance.greeting);
+      },
+
+      disable(frame, instance) {
+        console.log('[hello-plugin] 已禁用');
+      },
+
+      uninstall(frame, instance) {
+        console.log('[hello-plugin] 已卸载');
+      }
+    };
+
+    const stickyNotePlugin = {
+      name: 'sticky-note',
+      version: '1.0.0',
+      description: '便签卡插件 - 自定义卡片类型',
+      author: 'Demo',
+      autoEnable: true,
+
+      install(frame) {
+        frame.registerCardType('sticky-note', {
+          defaultProps: {
+            title: '便签',
+            content: '',
+            color: 'yellow'
+          },
+          validate(props) {
+            return { valid: true, errors: [] };
+          },
+          render(card) {
+            const colors = {
+              yellow: '#fff9c4',
+              green: '#c8e6c9',
+              blue: '#bbdefb',
+              pink: '#f8bbd9'
+            };
+            const color = colors[card.props.color] || colors.yellow;
+            const content = card.props.content || '';
+            return `
+              <div style="background: ${color}; padding: 16px; border-radius: 4px; min-height: 100px;">
+                <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #333;">${content}</p>
+              </div>
+            `;
+          }
+        });
+
+        return {};
+      },
+
+      enable(frame, instance) {},
+      disable(frame, instance) {},
+      uninstall(frame, instance) {}
+    };
+
+    const counterCardPlugin = {
+      name: 'counter-card',
+      version: '1.0.0',
+      description: '计数器卡插件 - 带交互的自定义卡片',
+      author: 'Demo',
+      autoEnable: true,
+
+      install(frame) {
+        let counterValues = {};
+
+        frame.registerCardType('counter-card', {
+          defaultProps: {
+            title: '计数器',
+            initialValue: 0
+          },
+          validate(props) {
+            return { valid: true, errors: [] };
+          },
+          render(card) {
+            const value = counterValues[card.id] !== undefined 
+              ? counterValues[card.id] 
+              : (card.props.initialValue || 0);
+            
+            return `
+              <div class="counter-card" data-card-id="${card.id}" style="text-align: center; padding: 20px;">
+                <div style="font-size: 48px; font-weight: bold; color: #2196f3; margin: 10px 0;">${value}</div>
+                <div>
+                  <button class="counter-btn" data-action="decrease" data-id="${card.id}" style="padding: 8px 16px; font-size: 18px; margin: 0 4px;">-</button>
+                  <button class="counter-btn" data-action="increase" data-id="${card.id}" style="padding: 8px 16px; font-size: 18px; margin: 0 4px;">+</button>
+                  <button class="counter-btn" data-action="reset" data-id="${card.id}" style="padding: 8px 16px; font-size: 14px; margin: 0 4px;">重置</button>
+                </div>
+              </div>
+            `;
+          },
+          afterRender(card, element) {
+            const buttons = element.querySelectorAll('.counter-btn');
+            buttons.forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const cardId = btn.dataset.id;
+                
+                if (counterValues[cardId] === undefined) {
+                  counterValues[cardId] = card.props.initialValue || 0;
+                }
+
+                if (action === 'increase') {
+                  counterValues[cardId]++;
+                } else if (action === 'decrease') {
+                  counterValues[cardId]--;
+                } else if (action === 'reset') {
+                  counterValues[cardId] = card.props.initialValue || 0;
+                }
+
+                const display = element.querySelector('div');
+                if (display) {
+                  display.textContent = counterValues[cardId];
+                }
+              });
+            });
+          }
+        });
+
+        return {
+          getValue(cardId) {
+            return counterValues[cardId] || 0;
+          }
+        };
+      },
+
+      enable(frame, instance) {},
+      disable(frame, instance) {},
+      uninstall(frame, instance) {}
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      frame = CardFrame.from('#cardContainer');
+      updateStats();
+
+      frame.store.subscribe(() => {
+        updateStats();
+      });
+    });
+
+    function updateStats() {
+      if (!frame) return;
+      document.getElementById('cardCount').textContent = frame.getAllCards().length;
+      document.getElementById('pluginCount').textContent = frame.getAllPlugins().length;
+
+      const plugins = frame.getAllPlugins();
+      const pluginMap = {};
+      plugins.forEach(p => { pluginMap[p.name] = p; });
+
+      updatePluginStatus('helloStatus', 'hello-plugin', pluginMap);
+      updatePluginStatus('stickyStatus', 'sticky-note', pluginMap);
+      updatePluginStatus('counterStatus', 'counter-card', pluginMap);
+    }
+
+    function updatePluginStatus(elementId, pluginName, pluginMap) {
+      const el = document.getElementById(elementId);
+      if (pluginMap[pluginName]) {
+        el.textContent = '已启用';
+        el.className = 'plugin-badge enabled';
+      } else {
+        el.textContent = '未安装';
+        el.className = 'plugin-badge';
+      }
+    }
+
+    function installAll() {
+      try {
+        if (!frame.pluginManager.isInstalled('hello-plugin')) {
+          frame.installPlugin(helloPlugin);
+        }
+        if (!frame.pluginManager.isInstalled('sticky-note')) {
+          frame.installPlugin(stickyNotePlugin);
+        }
+        if (!frame.pluginManager.isInstalled('counter-card')) {
+          frame.installPlugin(counterCardPlugin);
+        }
+        alert('所有插件安装成功！');
+        updateStats();
+      } catch (e) {
+        alert('安装失败：' + e.message);
+      }
+    }
+
+    function uninstallAll() {
+      if (!confirm('确定要卸载所有插件吗？')) return;
+
+      try {
+        if (frame.pluginManager.isInstalled('counter-card')) {
+          frame.uninstallPlugin('counter-card');
+        }
+        if (frame.pluginManager.isInstalled('sticky-note')) {
+          frame.uninstallPlugin('sticky-note');
+        }
+        if (frame.pluginManager.isInstalled('hello-plugin')) {
+          frame.uninstallPlugin('hello-plugin');
+        }
+        alert('所有插件已卸载');
+        updateStats();
+      } catch (e) {
+        alert('卸载失败：' + e.message);
+      }
+    }
+
+    function addStickyNote() {
+      if (!frame.pluginManager.isInstalled('sticky-note')) {
+        alert('请先安装 sticky-note 插件');
+        return;
+      }
+
+      const content = document.getElementById('stickyContent').value.trim();
+      const color = document.getElementById('stickyColor').value;
+
+      frame.createCard('sticky-note', {
+        title: '便签',
+        content: content || '这是一张便签',
+        color
+      });
+
+      document.getElementById('stickyContent').value = '';
+    }
+
+    function addCounterCard() {
+      if (!frame.pluginManager.isInstalled('counter-card')) {
+        alert('请先安装 counter-card 插件');
+        return;
+      }
+
+      const title = document.getElementById('counterTitle').value.trim() || '计数器';
+
+      frame.createCard('counter-card', {
+        title,
+        initialValue: 0
+      });
+    }
+
+    function testHook() {
+      alert('钩子功能演示：\n\n插件可以通过钩子机制介入框架生命周期，例如：\n- beforeCreate: 创建卡片前\n- afterCreate: 创建卡片后\n- beforeRemove: 删除卡片前\n- afterRemove: 删除卡片后\n\n具体实现请参考插件开发文档。');
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .app-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .back-link {
+      color: white;
+      text-decoration: underline;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .app-main {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .control-panel {
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+
+    .control-panel .section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .control-panel .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .plugin-list {
+      margin-bottom: 12px;
+    }
+
+    .plugin-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .plugin-item:last-child {
+      border-bottom: none;
+    }
+
+    .plugin-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .plugin-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background-color: #e0e0e0;
+      color: #666;
+    }
+
+    .plugin-badge.enabled {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .card-container {
+      flex: 1;
+      min-height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-main {
+        flex-direction: column;
+      }
+
+      .control-panel {
+        width: 100%;
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</body>
+</html>
