@@ -1,0 +1,11 @@
+{
+  "port": 9100,
+  "projectRoot": "..",
+  "branch": "main",
+  "evolutionBranch": "evolution",
+  "llmEndpoint": "https://api.anthropic.com/v1/messages",
+  "testTimeout": 120000,
+  "maxSnapshots": 20,
+  "autoMergeThreshold": 10,
+  "npmCommand": "npm"
+}

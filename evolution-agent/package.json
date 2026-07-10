@@ -1,0 +1,13 @@
+{
+  "name": "cardframe-evolution-agent",
+  "version": "1.0.0",
+  "description": "CardFrame self-evolution agent - AI code generation, Git version management, test & rollback",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "dotenv": "^16.3.1"
+  }
+}
