@@ -6010,6 +6010,13 @@
       });
       this.eventBus = eventBus;
 
+      this.evolutionEngine = options.evolution !== false
+        ? new EvolutionEngine(this, options.evolution || {})
+        : null;
+      if (this.evolutionEngine) {
+        this.evolutionEngine.start();
+      }
+
       this.autoFixer._getValidator = () => this.realTimeValidator;
 
       defaultCardTypes
@@ -6823,6 +6830,24 @@
         throw new Error(`找不到容器元素: ${selector}`);
       }
       return new CardFrame(container);
+    }
+
+    getEvolutionHistory() {
+      return this.evolutionEngine ? this.evolutionEngine.getEvolutionHistory() : [];
+    }
+
+    getMetricsSnapshot() {
+      return this.evolutionEngine ? this.evolutionEngine.getMetrics() : null;
+    }
+
+    evolveNow() {
+      if (this.evolutionEngine) {
+        var metrics = this.evolutionEngine.metricsCollector.getSnapshot();
+        var actions = this.evolutionEngine.ruleEngine.evaluate(metrics);
+        for (var i = 0; i < actions.length; i++) {
+          this.evolutionEngine._executeAction(actions[i]);
+        }
+      }
     }
   }
 
