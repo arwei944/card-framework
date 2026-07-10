@@ -1,0 +1,184 @@
+diff --git a/src/card-framework.js b/src/card-framework.js
+index 857db0f..52dc4b2 100644
+--- a/src/card-framework.js
++++ b/src/card-framework.js
+@@ -5530,20 +5530,157 @@
+     }
+ 
+     syncCards() {
+       const cards = this._store.getAllCards();
+       if (this._renderer) {
+         this._renderer.renderCards(cards);
+       }
+     }
+   }
+ 
++  class MetricsCollector {
++    constructor(frame) {
++      this.frame = frame;
++      this.samples = {
++        performance: [],
++        interaction: [],
++        architecture: []
++      };
++      this._timers = {};
++      this._eventHandlers = {};
++      this._maxSamples = 288;
++    }
++
++    start() {
++      this._timers.perf = setInterval(() => this._collectPerformance(), 5000);
++      this._timers.arch = setInterval(() => this._collectArchitecture(), 3600000);
++      this._attachInteractionListeners();
++    }
++
++    stop() {
++      Object.values(this._timers).forEach(clearInterval);
++      this._detachInteractionListeners();
++    }
++
++    _collectPerformance() {
++      var sample = {
++        timestamp: Date.now(),
++        renderTime: this.frame.renderer._lastRenderTime || 0,
++        cardCount: this.frame.store.cards.size,
++        poolStats: this.frame.cardObjectPool ? this.frame.cardObjectPool.getStats() : {},
++        cacheStats: this.frame.layoutEngine && this.frame.layoutEngine.layoutCache ? this.frame.layoutEngine.layoutCache.getStats() : {},
++        memoryMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0
++      };
++      this._pushSample('performance', sample);
++    }
++
++    _attachInteractionListeners() {
++      var self = this;
++      this._eventHandlers.cardAdded = function(card) { self._recordInteraction('card-add', card.type); };
++      this._eventHandlers.cardUpdated = function(card) { self._recordInteraction('card-update', card.type); };
++      eventBus.on(EVENT_TYPES.CARD_ADDED, this._eventHandlers.cardAdded);
++      eventBus.on(EVENT_TYPES.CARD_UPDATED, this._eventHandlers.cardUpdated);
++    }
++
++    _collectArchitecture() {
++      var types = this.frame.typeRegistry._types;
++      var maxDepth = 0;
++      types.forEach(function(t) {
++        if (t.extends) {
++          var depth = 0;
++          var current = t;
++          while (current.extends) {
++            depth++;
++            current = types.get(current.extends);
++            if (!current) break;
++          }
++          maxDepth = Math.max(maxDepth, depth);
++        }
++      });
++      var sample = {
++        timestamp: Date.now(),
++        typeCount: types.size,
++        maxInheritanceDepth: maxDepth,
++        pluginCount: this.frame.pluginManager._plugins ? this.frame.pluginManager._plugins.size : 0,
++        listenerCount: this.frame.renderer._trackedListeners ? this.frame.renderer._trackedListeners.size : 0
++      };
++      this._pushSample('architecture', sample);
++    }
++
++    getSnapshot() {
++      var perf = this.samples.performance;
++      var last5 = perf.slice(-12);
++      return {
++        performance: {
++          avgRenderTime: this._avg(last5, 'renderTime'),
++          currentCardCount: perf.length ? perf[perf.length - 1].cardCount : 0,
++          poolHitRate: this._last(last5, 'poolStats') ? (this._last(last5, 'poolStats').hitRate || 0) : 0,
++          cacheHitRate: this._last(last5, 'cacheStats') ? (this._last(last5, 'cacheStats').hitRate || 0) : 0,
++          memoryMB: this._last(last5, 'memoryMB') || 0
++        },
++        interaction: this._aggregateInteractions(),
++        architecture: this.samples.architecture.slice(-1)[0] || {}
++      };
++    }
++
++    _pushSample(category, sample) {
++      this.samples[category].push(sample);
++      if (this.samples[category].length > this._maxSamples) {
++        this.samples[category].shift();
++      }
++    }
++
++    _avg(arr, key) {
++      if (!arr.length) return 0;
++      var sum = 0;
++      for (var i = 0; i < arr.length; i++) { sum += (arr[i][key] || 0); }
++      return sum / arr.length;
++    }
++
++    _last(arr, key) {
++      if (!arr.length) return null;
++      return arr[arr.length - 1][key];
++    }
++
++    _recordInteraction(action, type) {
++      var sample = { timestamp: Date.now(), action: action, type: type };
++      this._pushSample('interaction', sample);
++    }
++
++    _aggregateInteractions() {
++      var now = Date.now();
++      var recent = [];
++      for (var i = 0; i < this.samples.interaction.length; i++) {
++        if (now - this.samples.interaction[i].timestamp < 300000) {
++          recent.push(this.samples.interaction[i]);
++        }
++      }
++      var byType = {};
++      for (var j = 0; j < recent.length; j++) {
++        var t = recent[j].type;
++        byType[t] = (byType[t] || 0) + 1;
++      }
++      var topTypes = Object.keys(byType).map(function(type) {
++        return { type: type, count: byType[type] };
++      }).sort(function(a, b) { return b.count - a.count; }).slice(0, 5);
++      return {
++        totalActions: recent.length,
++        topTypes: topTypes
++      };
++    }
++
++    _detachInteractionListeners() {
++      eventBus.off(EVENT_TYPES.CARD_ADDED, this._eventHandlers.cardAdded);
++      eventBus.off(EVENT_TYPES.CARD_UPDATED, this._eventHandlers.cardUpdated);
++    }
++  }
++
+   class CardFrame {
+     constructor(container, options = {}) {
+       if (typeof container === 'string') {
+         const el = document.querySelector(container);
+         if (!el) {
+           throw new Error(`找不到容器元素: ${container}`);
+         }
+         container = el;
+       }
+       
+@@ -6405,20 +6542,21 @@
+   CardFrame.DEFAULT_CONFIG = DEFAULT_CONFIG;
+   CardFrame.CARD_STATUS = CARD_STATUS;
+   CardFrame.RELATIONSHIP_TYPES = RELATIONSHIP_TYPES;
+   CardFrame.PluginManager = PluginManager;
+   CardFrame.ActionLogger = ActionLogger;
+   CardFrame.CircuitBreaker = CircuitBreaker;
+   CardFrame.ThemeManager = ThemeManager;
+   CardFrame.I18nManager = I18nManager;
+   CardFrame.RelationshipEngine = RelationshipEngine;
+   CardFrame.VirtualScroller = VirtualScroller;
++  CardFrame.MetricsCollector = MetricsCollector;
+   CardFrame.Security = Security;
+   CardFrame.Perf = Perf;
+   CardFrame.PerfPanel = PerfPanel;
+   CardFrame.GlobalErrorHandler = GlobalErrorHandler;
+   CardFrame.CardObjectPool = CardObjectPool;
+   CardFrame.LayoutCache = LayoutCache;
+   CardFrame.QueryIndex = QueryIndex;
+   CardFrame.ShadowCardRegistry = ShadowCardRegistry;
+   CardFrame._globalStore = null;
+ 

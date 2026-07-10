@@ -1,0 +1,71 @@
+diff --git a/src/card-framework.js b/src/card-framework.js
+index 951539e..67691fe 100644
+--- a/src/card-framework.js
++++ b/src/card-framework.js
+@@ -6003,20 +6003,27 @@
+       this.perfPanel = new PerfPanel();
+       this.cardObjectPool = new CardObjectPool(options.cardPool || {});
+       this.themeManager = new ThemeManager(container);
+       this.i18n = new I18nManager();
+       this.relationshipEngine = new RelationshipEngine(container, this.store);
+       this.virtualScroller = new VirtualScroller(container, this.store, this.renderer, {
+         overscan: options.overscan || DEFAULT_CONFIG.VIRTUAL_SCROLL_OVERSCAN
+       });
+       this.eventBus = eventBus;
+ 
++      this.evolutionEngine = options.evolution !== false
++        ? new EvolutionEngine(this, options.evolution || {})
++        : null;
++      if (this.evolutionEngine) {
++        this.evolutionEngine.start();
++      }
++
+       this.autoFixer._getValidator = () => this.realTimeValidator;
+ 
+       defaultCardTypes
+         .forEach(type => this.typeRegistry.register(type));
+ 
+       this.store.subscribe(Utils.debounce(() => {
+         this.realTimeValidator.pause();
+         if (this.virtualScroller && this.virtualScroller.isEnabled()) {
+           this.virtualScroller.refresh();
+         } else {
+@@ -6817,20 +6824,38 @@
+       return Perf.getStats();
+     }
+ 
+     static from(selector) {
+       const container = document.querySelector(selector);
+       if (!container) {
+         throw new Error(`找不到容器元素: ${selector}`);
+       }
+       return new CardFrame(container);
+     }
++
++    getEvolutionHistory() {
++      return this.evolutionEngine ? this.evolutionEngine.getEvolutionHistory() : [];
++    }
++
++    getMetricsSnapshot() {
++      return this.evolutionEngine ? this.evolutionEngine.getMetrics() : null;
++    }
++
++    evolveNow() {
++      if (this.evolutionEngine) {
++        var metrics = this.evolutionEngine.metricsCollector.getSnapshot();
++        var actions = this.evolutionEngine.ruleEngine.evaluate(metrics);
++        for (var i = 0; i < actions.length; i++) {
++          this.evolutionEngine._executeAction(actions[i]);
++        }
++      }
++    }
+   }
+ 
+   CardFrame.Utils = Utils;
+   CardFrame.Store = Store;
+   CardFrame.TypeRegistry = TypeRegistry;
+   CardFrame.Renderer = Renderer;
+   CardFrame.LayoutEngine = LayoutEngine;
+   CardFrame.EventBus = eventBus;
+   CardFrame.AutoFixer = AutoFixer;
+   CardFrame.RealTimeValidator = RealTimeValidator;
