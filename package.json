@@ -5,7 +5,7 @@
   "main": "src/card-framework.js",
   "types": "dist/card-framework.d.ts",
   "scripts": {
-    "test": "mocha tests/test.js && mocha tests/plugin-tests.js",
+    "test": "mocha tests/test.js && mocha tests/plugin-tests.js && mocha tests/evolution-tests.js",
     "test:coverage": "c8 npm test",
     "test:perf": "node tests/perf-test.js",
     "serve": "npx http-server -p 8080",

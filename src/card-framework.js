@@ -5557,7 +5557,8 @@
     }
 
     stop() {
-      Object.values(this._timers).forEach(clearInterval);
+      var self = this;
+      Object.keys(this._timers).forEach(function(key) { clearInterval(self._timers[key]); self._timers[key] = undefined; });
       this._detachInteractionListeners();
     }
 
@@ -5582,7 +5583,7 @@
     }
 
     _collectArchitecture() {
-      var types = this.frame.typeRegistry._types;
+      var types = this.frame.typeRegistry.types;
       var maxDepth = 0;
       types.forEach(function(t) {
         if (t.extends) {
@@ -5817,8 +5818,8 @@
 
     stop() {
       this.metricsCollector.stop();
-      if (this._timers.ruleCheck) clearInterval(this._timers.ruleCheck);
-      if (this._timers.agentSync) clearInterval(this._timers.agentSync);
+      if (this._timers.ruleCheck) { clearInterval(this._timers.ruleCheck); this._timers.ruleCheck = undefined; }
+      if (this._timers.agentSync) { clearInterval(this._timers.agentSync); this._timers.agentSync = undefined; }
       if (this.wsConnection) { this.wsConnection.close(); this.wsConnection = null; }
     }
 
@@ -5848,7 +5849,7 @@
       var action = ruleResult.action;
       var targets = {
         cardPool: this.frame.cardObjectPool,
-        layoutCache: this.frame.layoutEngine.layoutCache,
+        layoutCache: this.frame.layoutEngine._layoutCache,
         renderer: this.frame.renderer,
         virtualScroller: this.frame.virtualScroller
       };
