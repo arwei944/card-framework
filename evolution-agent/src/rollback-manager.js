@@ -5,7 +5,7 @@ var path = require('path');
 function RollbackManager(config) {
   this.projectRoot = config.projectRoot || '..';
   this.maxSnapshots = config.maxSnapshots || 20;
-  this._cwd = path.resolve(__dirname, this.projectRoot);
+  this._cwd = path.resolve(__dirname, '..', this.projectRoot || '..');
   this.snapshotDir = path.resolve(__dirname, 'snapshots');
 }
 
@@ -51,13 +51,15 @@ RollbackManager.prototype.rollback = function(snapshot) {
       this._git('stash apply ' + snapshot.stashRef);
     } catch (e) { /* ignore stash apply failure */ }
   } else {
-    this._git('checkout -- .');
+    try { this._git('checkout -- .'); } catch (e) { /* not a git working tree */ }
   }
   try {
     this._git('reset --hard ' + snapshot.headHash);
   } catch (e) {
-    this._git('checkout --orphan temp-branch');
-    this._git('commit -m "rollback to snapshot ' + snapshot.sessionId + '"');
+    try {
+      this._git('checkout --orphan temp-branch');
+      this._git('commit -m "rollback to snapshot ' + snapshot.sessionId + '"');
+    } catch (e2) { /* not a git working tree */ }
   }
   return { success: true, sessionId: snapshot.sessionId };
 };

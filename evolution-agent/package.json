@@ -4,7 +4,8 @@
   "description": "CardFrame self-evolution agent - AI code generation, Git version management, test & rollback",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test test"
   },
   "dependencies": {
     "ws": "^8.16.0",

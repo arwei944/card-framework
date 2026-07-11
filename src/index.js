@@ -41,6 +41,7 @@ import { RealTimeValidator } from './validation/RealTimeValidator.js';
 import { ThemeManager } from './extras/ThemeManager.js';
 import { I18nManager } from './extras/I18nManager.js';
 import { RelationshipEngine } from './extras/RelationshipEngine.js';
+import { BackendSync } from './extras/BackendSync.js';
 
 // ─── Plugins ──────────────────────────────────────────────
 import { PluginManager } from './plugins/PluginManager.js';
@@ -86,6 +87,7 @@ CardFrame.CircuitBreaker = CircuitBreaker;
 CardFrame.ThemeManager = ThemeManager;
 CardFrame.I18nManager = I18nManager;
 CardFrame.RelationshipEngine = RelationshipEngine;
+CardFrame.BackendSync = BackendSync;
 CardFrame.VirtualScroller = VirtualScroller;
 CardFrame.MetricsCollector = MetricsCollector;
 CardFrame.RuleEngine = RuleEngine;
@@ -169,6 +171,7 @@ export {
   ThemeManager,
   I18nManager,
   RelationshipEngine,
+  BackendSync,
   VirtualScroller,
   EvolutionEngine,
   MetricsCollector,

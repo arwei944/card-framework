@@ -6,7 +6,7 @@ function VersionManager(config) {
   this.projectRoot = config.projectRoot || '..';
   this.branch = config.branch || 'main';
   this.evolutionBranch = config.evolutionBranch || 'evolution';
-  this._cwd = path.resolve(__dirname, this.projectRoot);
+  this._cwd = path.resolve(__dirname, '..', this.projectRoot || '..');
 }
 
 VersionManager.prototype._git = function(args) {

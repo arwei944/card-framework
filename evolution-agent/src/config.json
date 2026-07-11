@@ -1,11 +1,22 @@
 {
   "port": 9100,
+  "bind": "127.0.0.1",
   "projectRoot": "..",
   "branch": "main",
   "evolutionBranch": "evolution",
-  "llmEndpoint": "https://api.anthropic.com/v1/messages",
   "testTimeout": 120000,
   "maxSnapshots": 20,
   "autoMergeThreshold": 10,
-  "npmCommand": "npm"
+  "npmCommand": "npm",
+  "tokenEnv": "CARD_EVOLUTION_TOKEN",
+  "reviewTokenEnv": "CARD_EVOLUTION_REVIEW_TOKEN",
+  "llmEndpoint": "https://api.anthropic.com/v1/messages",
+  "llmApiKeyEnv": "ANTHROPIC_API_KEY",
+  "llmModel": "claude-sonnet-4-6",
+  "allowedOrigins": [],
+  "allowedWritePaths": [
+    "src/core/CardFrame.js"
+  ],
+  "requireReview": true,
+  "dryRun": false
 }

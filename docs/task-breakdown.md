@@ -1,3 +1,7 @@
+
+> 📜 **历史规划/评估记录（Phase 4 之前）**
+> 本文件是重构时期的规划/评估报告，描述的目标已在当前 ES Module + esbuild + jsdom 代码中实现。
+> 其中的代码行号、旧架构论断（单体/正则/mock）**已不适用**。当前事实以 `docs/architecture-overview.md` 与源码为准。
 # CardFrame 重构任务清单与验收标准
 
 > **基于文档**：`docs/refactoring-plan.md`（8 Phase 重构方案）、`docs/CONSTRAINTS.md`（硬约束）、`docs/code-logic-quality-assessment.md`（12 个确认 Bug）
