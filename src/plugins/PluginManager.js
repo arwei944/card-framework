@@ -7,6 +7,7 @@ import { EVENT_TYPES } from '../utils/constants.js';
 import { Utils } from '../utils/Utils.js';
 import { Security } from '../security/Security.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
+import { PluginSandbox } from './PluginSandbox.js';
 
 export class PluginManager {
   constructor(frame) {
@@ -16,6 +17,7 @@ export class PluginManager {
     this._permissions = new Map();
     this._callCounts = new Map();
     this._maxCallsPerMinute = 1000;
+    this._actions = new Map();
   }
 
   get _eventBus() {
@@ -45,89 +47,67 @@ export class PluginManager {
     return count <= this._maxCallsPerMinute;
   }
 
+  createSandbox(pluginName, permissions) {
+    return new PluginSandbox(
+      pluginName,
+      this.frame,
+      permissions,
+      (name) => this.checkRateLimit(name)
+    );
+  }
+
   getSandboxContext(pluginName) {
-    const frame = this.frame;
-    const can = (perm) => this.hasPermission(pluginName, perm);
+    const plugin = this.plugins.get(pluginName);
+    const sandbox = plugin && plugin.sandbox
+      ? plugin.sandbox
+      : this.createSandbox(pluginName, Array.from(this._permissions.get(pluginName) || []));
+    return sandbox.createContext();
+  }
 
-    return {
-      store: can('store:read') ? {
-        getCard: (id) => frame.store.getCard(id),
-        getAllCards: () => frame.store.getAllCards(),
-        getCardsByType: (type) => frame.store.getCardsByType(type),
-        getRelationship: (id) => frame.store.getRelationship(id),
-        getAllRelationships: () => frame.store.getAllRelationships()
-      } : null,
-
-      storeWrite: can('store:write') ? {
-        addCard: (card) => {
-          if (!this.checkRateLimit(pluginName)) {
-            FeedbackSystem.warn('plugin_rate_limit', `插件 "${pluginName}" 操作频率超限`);
-            return null;
-          }
-          return frame.store.addCard(card);
-        },
-        updateCard: (card) => {
-          if (!this.checkRateLimit(pluginName)) return null;
-          return frame.store.updateCard(card);
-        }
-      } : null,
-
-      eventBus: can('events:subscribe') ? {
-        on: (event, handler) => frame.eventBus.on(event, handler),
-        off: (event, handler) => frame.eventBus.off(event, handler)
-      } : null,
-
-      typeRegistry: can('types:register') ? {
-        register: (def) => frame.typeRegistry.register(def),
-        get: (name) => frame.typeRegistry.get(name)
-      } : null,
-
-      i18n: can('i18n:read') ? {
-        t: (key, params) => frame.i18n.t(key, params),
-        getLocale: () => frame.i18n.getLocale()
-      } : null,
-
-      theme: can('theme:read') ? {
-        getCurrentTheme: () => frame.themeManager.getCurrentTheme()
-      } : null,
-
-      feedback: {
-        info: (type, msg, opts) => FeedbackSystem.info(type, msg, opts),
-        warn: (type, msg, opts) => FeedbackSystem.warn(type, msg, opts),
-        error: (type, msg, opts) => FeedbackSystem.error(type, msg, opts)
-      },
-
-      utils: can('utils:read') ? {
-        generateId: (p) => Utils.generateId(p),
-        escapeHtml: (s) => Utils.escapeHtml(s),
-        deepClone: (o) => Utils.deepClone(o)
-      } : null
+  registerHook(hookName, handler, options = {}) {
+    if (!this._hooks.has(hookName)) {
+      this._hooks.set(hookName, []);
+    }
+    const entry = {
+      handler,
+      priority: typeof options.priority === 'number' ? options.priority : 0,
+      pluginName: options.pluginName || null,
+      seq: this._hookSeq = (this._hookSeq || 0) + 1
+    };
+    this._hooks.get(hookName).push(entry);
+    return () => {
+      const list = this._hooks.get(hookName);
+      if (!list) return;
+      const idx = list.indexOf(entry);
+      if (idx >= 0) list.splice(idx, 1);
     };
   }
 
-  registerHook(hookName, handler) {
-    if (!this._hooks.has(hookName)) {
-      this._hooks.set(hookName, new Set());
-    }
-    this._hooks.get(hookName).add(handler);
-    return () => this._hooks.get(hookName).delete(handler);
+  _sortedHooks(hookName) {
+    const list = this._hooks.get(hookName);
+    if (!list || list.length === 0) return [];
+    return list.slice().sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      return a.seq - b.seq;
+    });
   }
 
   triggerHook(hookName, data) {
-    const hooks = this._hooks.get(hookName);
-    if (!hooks) return data;
+    const entries = this._sortedHooks(hookName);
+    if (entries.length === 0) return data;
 
     let result = data;
-    hooks.forEach(handler => {
+    entries.forEach(entry => {
       try {
-        result = handler(result, this.frame) || result;
+        result = entry.handler(result, this.frame) || result;
       } catch (e) {
-        console.error(`[CardFrame] 插件钩子 "${hookName}" 执行错误:`, e);
+        const who = entry.pluginName ? `插件 "${entry.pluginName}" 的` : '';
+        console.error(`[CardFrame] ${who}钩子 "${hookName}" 执行错误:`, e);
         this._eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
           type: 'plugin_error',
-          message: `插件钩子 "${hookName}" 执行错误: ${e.message}`,
+          message: `${who}钩子 "${hookName}" 执行错误: ${e.message}`,
           error: e,
-          context: { hookName, phase: 'triggerHook' },
+          context: { hookName, pluginName: entry.pluginName, phase: 'triggerHook' },
           timestamp: Date.now()
         });
       }
@@ -153,20 +133,39 @@ export class PluginManager {
       }
     }
 
+    const declaredPermissions = pluginDef.permissions || [];
+    const allowed = this.frame._options && this.frame._options.allowedPluginPermissions;
+    if (allowed) {
+      const allowedSet = new Set(allowed);
+      const denied = allowedSet.has('*')
+        ? []
+        : declaredPermissions.filter(p => !allowedSet.has(p));
+      if (denied.length > 0) {
+        throw new Error(`插件 "${pluginDef.name}" 请求未授权的权限: ${denied.join(', ')}`);
+      }
+    }
+    this.registerPermissions(pluginDef.name, declaredPermissions);
+
+    const sandbox = this.createSandbox(pluginDef.name, declaredPermissions);
+
     const plugin = {
       name: pluginDef.name,
       version: pluginDef.version || '1.0.0',
       description: pluginDef.description || '',
       author: pluginDef.author || '',
       dependencies: pluginDef.dependencies || [],
+      permissions: declaredPermissions,
       enabled: false,
       instance: null,
-      _def: pluginDef
+      sandbox,
+      _def: pluginDef,
+      _actionNames: [],
+      _hookUnregisters: []
     };
 
     if (typeof pluginDef.install === 'function') {
       try {
-        plugin.instance = pluginDef.install(this.frame) || {};
+        plugin.instance = pluginDef.install(this.frame, sandbox.createContext()) || {};
       } catch (e) {
         console.error(`[CardFrame] 插件 "${pluginDef.name}" 安装失败:`, e);
         this._eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
@@ -197,7 +196,16 @@ export class PluginManager {
             });
           }
         }
-        this.frame.typeRegistry.register(typeDef);
+        if (this.frame.typeRegistry.register(typeDef)) {
+          sandbox.trackType(typeDef.type);
+        }
+      });
+    }
+
+    if (pluginDef.themes) {
+      pluginDef.themes.forEach(themeDef => {
+        this.frame.themeManager.registerTheme(themeDef);
+        if (themeDef && themeDef.name) sandbox.trackTheme(themeDef.name);
       });
     }
 
@@ -206,8 +214,16 @@ export class PluginManager {
     }
 
     if (pluginDef.hooks) {
-      for (const [hookName, handler] of Object.entries(pluginDef.hooks)) {
-        this.registerHook(hookName, handler);
+      for (const [hookName, hookDef] of Object.entries(pluginDef.hooks)) {
+        const handler = typeof hookDef === 'function' ? hookDef : hookDef.handler;
+        const priority = typeof hookDef === 'object' && hookDef ? hookDef.priority : 0;
+        if (typeof handler === 'function') {
+          const unregister = this.registerHook(hookName, handler, {
+            priority,
+            pluginName: pluginDef.name
+          });
+          plugin._hookUnregisters.push(unregister);
+        }
       }
     }
 
@@ -257,6 +273,24 @@ export class PluginManager {
       }
     }
 
+    (plugin._hookUnregisters || []).forEach(unregister => {
+      try { unregister(); } catch (e) { /* noop */ }
+    });
+    plugin._hookUnregisters = [];
+
+    (plugin._actionNames || []).forEach(name => {
+      const entry = this._actions.get(name);
+      if (entry && entry.pluginName === pluginName) {
+        this._actions.delete(name);
+      }
+    });
+    plugin._actionNames = [];
+
+    if (plugin.sandbox) {
+      plugin.sandbox.destroy();
+    }
+
+    this._permissions.delete(pluginName);
     this.plugins.delete(pluginName);
     this._eventBus.emit(EVENT_TYPES.PLUGIN_UNINSTALLED, { pluginName });
     FeedbackSystem.info(`插件 "${pluginName}" 已卸载`);
@@ -357,8 +391,49 @@ export class PluginManager {
     return plugin ? plugin.enabled : false;
   }
 
-  // TODO: Phase 5 will implement this
   _registerPluginActions(pluginName, actions) {
-    // Placeholder — Phase 5 will implement action registration
+    if (!Array.isArray(actions)) return;
+    const plugin = this.plugins.get(pluginName);
+    actions.forEach(action => {
+      if (!action || !action.name || typeof action.handler !== 'function') {
+        FeedbackSystem.warn(`插件 "${pluginName}" 的 action 定义无效，需包含 name 与 handler`);
+        return;
+      }
+      if (this._actions.has(action.name)) {
+        FeedbackSystem.warn(`action "${action.name}" 已注册，插件 "${pluginName}" 的同名 action 被忽略`);
+        return;
+      }
+      this._actions.set(action.name, { pluginName, handler: action.handler });
+      if (plugin) plugin._actionNames.push(action.name);
+    });
+  }
+
+  hasAction(name) {
+    return this._actions.has(name);
+  }
+
+  executeAction(name, ...args) {
+    const entry = this._actions.get(name);
+    if (!entry) {
+      FeedbackSystem.warn(`action "${name}" 未注册`);
+      return undefined;
+    }
+    if (!this.checkRateLimit(entry.pluginName)) {
+      FeedbackSystem.warn('plugin_rate_limit', `插件 "${entry.pluginName}" 操作频率超限`);
+      return undefined;
+    }
+    try {
+      return entry.handler(this.frame, ...args);
+    } catch (e) {
+      console.error(`[CardFrame] action "${name}" 执行错误:`, e);
+      this._eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
+        type: 'plugin_error',
+        message: `action "${name}" 执行错误: ${e.message}`,
+        error: e,
+        context: { actionName: name, pluginName: entry.pluginName, phase: 'executeAction' },
+        timestamp: Date.now()
+      });
+      return undefined;
+    }
   }
 }

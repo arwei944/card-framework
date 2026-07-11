@@ -39,17 +39,26 @@
 - **T4.12** 修复 renderError 删除按钮：由不存在的 `card.store` 改为 `this.store.removeCard(card.id)`；list 卡片 `addItem` action 正确接收 `this.store`。
 - 新增回归测试（`tests/unit/store.test.js`）：关系索引一致性（remove/removeCard/fromJSON）+ notifyDebounced 合并。
 
+### Phase 5 — 插件系统加固 ✅（T5.01–T5.07）
+- **T5.01** 新增 `src/plugins/PluginSandbox.js`：每插件独立沙箱，追踪 setTimeout/setInterval/addEventListener/eventBus 订阅/注册的类型与主题；`createContext()` 返回按权限门控的受限 API（不暴露 circuitBreaker/perf）；`destroy()` 清理全部资源。
+- **T5.02** 权限校验：`CardFrame` `options.allowedPluginPermissions` 白名单；插件声明未授权权限时 install 抛异常；未设置白名单则不校验（向后兼容）；支持 `*`。
+- **T5.03** 卸载完整清理：install 时经沙箱追踪注册的类型/主题；uninstall 顺序为 onUninstall → 注销 hooks → 注销 actions → 沙箱 destroy（清类型/主题/定时器/监听器）→ 删权限 → 移除 → 触发 `PLUGIN_UNINSTALLED`。TypeRegistry 新增 `unregister()`。
+- **T5.04** hooks 优先级：`registerHook(name, handler, {priority, pluginName})`，`triggerHook` 按 priority 降序、同级按安装顺序（seq）执行，默认 priority=0。
+- **T5.05** 实现 `_registerPluginActions` + `PluginManager.executeAction()` + `CardFrame.executeAction()`；action 注册去重、卸载清理、限流与异常上报。
+- **T5.06** 异常隔离：单个 hook 抛错不中断后续 hook，错误经 `FRAMEWORK_ERROR` 传播且携带 pluginName/hookName。
+- **T5.07** 新增 `tests/integration/plugin-phase5.test.js` 共 24 个测试（沙箱资源清理 / 权限拒绝 / 卸载清理 / 优先级 / action / 异常隔离）。
+- `PluginSandbox` 已从 `src/index.js` 导出。
+
 ## 尚未完成（后续 Phase）
 
 - Phase 4 其余（T4.10/T4.11/T4.13–T4.17）：剩余 P1/P2 Bug 收尾。
-- Phase 5 — 插件沙箱 / 权限校验 / 卸载清理 / hooks 优先级。
 - Phase 6 — 安全增强（sanitizeUrl 协议白名单细化、tooltip XSS、CSP 支持）。
 - Phase 7 — 其他收尾。
 
 ## 验证命令
 ```
-npm run build     # esbuild → dist/（6+ 产物）
-npm test          # 112 passing
+npm run build     # esbuild → dist/（9 产物）
+npm test          # 136 passing
 npm run test:coverage
 ```
 

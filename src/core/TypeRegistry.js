@@ -54,6 +54,10 @@ export class TypeRegistry {
     };
   }
 
+  unregister(typeName) {
+    return this.types.delete(typeName);
+  }
+
   get(typeName) {
     return this.types.get(typeName);
   }

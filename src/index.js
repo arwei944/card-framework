@@ -44,6 +44,7 @@ import { RelationshipEngine } from './extras/RelationshipEngine.js';
 
 // ─── Plugins ──────────────────────────────────────────────
 import { PluginManager } from './plugins/PluginManager.js';
+import { PluginSandbox } from './plugins/PluginSandbox.js';
 
 // ─── Performance ──────────────────────────────────────────
 import { Perf } from './perf/Perf.js';
@@ -79,6 +80,7 @@ CardFrame.AutoFixer = AutoFixer;
 CardFrame.RealTimeValidator = RealTimeValidator;
 CardFrame.FeedbackSystem = FeedbackSystem;
 CardFrame.PluginManager = PluginManager;
+CardFrame.PluginSandbox = PluginSandbox;
 CardFrame.ActionLogger = ActionLogger;
 CardFrame.CircuitBreaker = CircuitBreaker;
 CardFrame.ThemeManager = ThemeManager;
@@ -159,6 +161,7 @@ export {
   AutoFixer,
   RealTimeValidator,
   PluginManager,
+  PluginSandbox,
   CircuitBreaker,
   ActionLogger,
   GlobalErrorHandler,

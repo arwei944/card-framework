@@ -499,6 +499,16 @@ class CardFrame {
     return this.pluginManager.disable(pluginName);
   }
 
+  /**
+   * 执行插件注册的 action
+   * @param {string} name - action 名称
+   * @param {...*} args - 传递给 action 处理器的参数
+   * @returns {*} action 处理器的返回值
+   */
+  executeAction(name, ...args) {
+    return this.pluginManager.executeAction(name, ...args);
+  }
+
   // ─── Event Bus Proxy ──────────────────────────────────────
 
   on(eventName, listener) {
