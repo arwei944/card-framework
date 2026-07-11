@@ -17,6 +17,7 @@ export class Renderer {
     this._eventBus = eventBus;
     this._lastCardIds = [];
     this._eventListeners = new Map();
+    this._cardElements = new Map();
     this._rafId = null;
     this._pendingCards = null;
     this._batchRendering = false;
@@ -48,6 +49,7 @@ export class Renderer {
       });
       this._eventListeners.delete(cardId);
     }
+    this._cardElements.delete(cardId);
   }
 
   renderCard(card) {
@@ -147,6 +149,7 @@ export class Renderer {
       this.cleanupCardElement(card.id);
       const newEl = this.renderCard(card);
       cardEl.replaceWith(newEl);
+      this._cardElements.set(card.id, newEl);
       return newEl;
     }
 
@@ -221,13 +224,16 @@ export class Renderer {
   }
 
   renderCards(cards) {
+    // Single scheduling layer: coalesce all renderCards calls that happen within
+    // one frame into a single _doRenderCards on the next animation frame. Store
+    // subscribers call this directly (no upstream debounce), so bursts of
+    // synchronous mutations still produce exactly one DOM pass.
+    this._pendingCards = cards;
+
     if (this._batchRendering) {
-      this._pendingCards = cards;
       return;
     }
-
     this._batchRendering = true;
-    this._pendingCards = cards;
 
     if (this._rafId) {
       cancelAnimationFrame(this._rafId);
@@ -237,8 +243,8 @@ export class Renderer {
       this._rafId = null;
       const currentCards = this._pendingCards || cards;
       this._pendingCards = null;
-      this._doRenderCards(currentCards);
       this._batchRendering = false;
+      this._doRenderCards(currentCards);
     });
   }
 
@@ -255,7 +261,7 @@ export class Renderer {
     const updatedIds = currentIds.filter(id => lastIdSet.has(id));
 
     removedIds.forEach(id => {
-      const el = this.container.querySelector(`[data-card-id="${id}"]`);
+      const el = this._cardElements.get(id);
       if (el) {
         this.cleanupCardElement(id);
         el.remove();
@@ -265,7 +271,7 @@ export class Renderer {
     const cardMap = new Map(cards.map(c => [c.id, c]));
 
     updatedIds.forEach(id => {
-      const el = this.container.querySelector(`[data-card-id="${id}"]`);
+      const el = this._cardElements.get(id);
       const card = cardMap.get(id);
       if (el && card) {
         this.updateCardElement(el, card);
@@ -289,6 +295,7 @@ export class Renderer {
       const card = cardMap.get(id);
       if (card) {
         const el = this.renderCard(card);
+        this._cardElements.set(id, el);
         const index = idOrderMap.get(id);
         const referenceNode = this.container.children[index] || null;
         this.container.insertBefore(el, referenceNode);
@@ -357,6 +364,7 @@ export class Renderer {
     });
     this.container.innerHTML = '';
     this._eventListeners.clear();
+    this._cardElements.clear();
     this.renderCards(cards);
   }
 }

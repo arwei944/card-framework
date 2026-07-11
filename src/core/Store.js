@@ -17,6 +17,29 @@ export class Store {
     this._eventBus = eventBus;
     this._relIndex = new Map();
     this._notifyTimer = null;
+    this._snapshotCache = new Map();
+  }
+
+  _deepFreeze(obj) {
+    if (obj === null || typeof obj !== 'object' || Object.isFrozen(obj)) return obj;
+    Object.freeze(obj);
+    for (const key of Object.keys(obj)) {
+      this._deepFreeze(obj[key]);
+    }
+    return obj;
+  }
+
+  _snapshot(card) {
+    if (!card) return card;
+    const cached = this._snapshotCache.get(card.id);
+    if (cached && cached.master === card) return cached.frozen;
+    const frozen = this._deepFreeze(Utils.deepClone(card));
+    this._snapshotCache.set(card.id, { master: card, frozen });
+    return frozen;
+  }
+
+  _invalidateSnapshot(id) {
+    this._snapshotCache.delete(id);
   }
 
   notifyDebounced() {
@@ -77,6 +100,7 @@ export class Store {
         pooled.updatedAt = Date.now();
         this.cards.set(pooled.id, pooled);
         this._index.add(pooled);
+        this._invalidateSnapshot(pooled.id);
         this.notify();
         this._emit(EVENT_TYPES.CARD_ADDED, { card: pooled });
         return pooled;
@@ -84,6 +108,7 @@ export class Store {
     }
     this.cards.set(newCard.id, newCard);
     this._index.add(newCard);
+    this._invalidateSnapshot(newCard.id);
     this.notify();
     this._emit(EVENT_TYPES.CARD_ADDED, { card: newCard });
     return newCard;
@@ -95,6 +120,7 @@ export class Store {
     updatedCard.updatedAt = Date.now();
     this.cards.set(updatedCard.id, updatedCard);
     this._index.add(updatedCard);
+    this._invalidateSnapshot(updatedCard.id);
     this.notify();
     this._emit(EVENT_TYPES.CARD_UPDATED, { card: updatedCard });
     return updatedCard;
@@ -112,6 +138,7 @@ export class Store {
     const card = this.cards.get(id);
     this.cards.delete(id);
     this._index.remove(id);
+    this._invalidateSnapshot(id);
     if (this._pool && card.type) {
       this._pool.release(card);
     }
@@ -134,7 +161,7 @@ export class Store {
   }
 
   getAllCards() {
-    return Array.from(this.cards.values()).map(c => Utils.deepClone(c));
+    return Array.from(this.cards.values()).map(c => this._snapshot(c));
   }
 
   getCardsByType(type) {
@@ -142,7 +169,7 @@ export class Store {
     const result = [];
     ids.forEach(id => {
       const c = this.cards.get(id);
-      if (c) result.push(Utils.deepClone(c));
+      if (c) result.push(this._snapshot(c));
     });
     return result;
   }
@@ -152,7 +179,7 @@ export class Store {
     const result = [];
     ids.forEach(id => {
       const c = this.cards.get(id);
-      if (c) result.push(Utils.deepClone(c));
+      if (c) result.push(this._snapshot(c));
     });
     return result;
   }
@@ -162,7 +189,7 @@ export class Store {
     const result = [];
     ids.forEach(id => {
       const c = this.cards.get(id);
-      if (c) result.push(c);
+      if (c) result.push(this._snapshot(c));
     });
     return result;
   }
@@ -172,7 +199,7 @@ export class Store {
     const result = [];
     ids.forEach(id => {
       const c = this.cards.get(id);
-      if (c) result.push(Utils.deepClone(c));
+      if (c) result.push(this._snapshot(c));
     });
     return result;
   }

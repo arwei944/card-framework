@@ -9,14 +9,17 @@
   "files": [
     "dist/",
     "src/",
+    "types/",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "pretest": "npm run build",
     "test": "mocha \"tests/unit/**/*.test.js\" \"tests/integration/**/*.test.js\"",
-    "test:coverage": "npm run build && c8 --reporter=text --include=\"dist/card-framework.cjs.js\" mocha \"tests/unit/**/*.test.js\" \"tests/integration/**/*.test.js\"",
+    "test:coverage": "npm run build && c8 mocha \"tests/unit/**/*.test.js\" \"tests/integration/**/*.test.js\"",
+    "lint": "eslint src scripts",
     "serve": "npx http-server -p 8080",
     "build": "node scripts/build.js",
     "release": "npm test && npm run build",
@@ -42,8 +45,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "c8": "^9.0.0",
     "esbuild": "^0.28.1",
+    "eslint": "^9.39.5",
     "jsdom": "^29.1.1",
     "mocha": "^10.0.0"
   }

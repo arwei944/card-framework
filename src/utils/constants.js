@@ -3,6 +3,9 @@
  * @module utils/constants
  */
 
+/** Framework version — single source of truth, shared by CardFrame.VERSION. */
+export const VERSION = '1.0.0';
+
 /** Framework event type names */
 export const EVENT_TYPES = {
   CARD_ADDED: 'cardAdded',

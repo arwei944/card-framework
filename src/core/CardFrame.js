@@ -33,10 +33,11 @@ import { RelationshipEngine } from '../extras/RelationshipEngine.js';
 import { VirtualScroller } from '../render/VirtualScroller.js';
 import { EvolutionEngine } from '../evolution/EvolutionEngine.js';
 import { defaultCardTypes } from './defaultCardTypes.js';
+import { checkDataVersion, exportData, importData } from './DataIO.js';
 import { Utils } from '../utils/Utils.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
 import { Perf } from '../perf/Perf.js';
-import { EVENT_TYPES, DEFAULT_CONFIG } from '../utils/constants.js';
+import { EVENT_TYPES, DEFAULT_CONFIG, VERSION } from '../utils/constants.js';
 
 class CardFrame {
   constructor(container, options = {}) {
@@ -60,9 +61,6 @@ class CardFrame {
     this._initPlugins(options);
     this._initFromDOMWhenReady();
     this._initValidator(options);
-
-    // Backward-compat: static reference to the most recent store (used by defaultCardTypes.js)
-    CardFrame._globalStore = this.store;
   }
 
   static _resolveContainer(container) {
@@ -120,10 +118,15 @@ class CardFrame {
   }
 
   _initRenderSubscription() {
-    this.store.subscribe(Utils.debounce(() => {
+    // Single-layer scheduling: subscribe directly (no debounce). The Renderer's
+    // requestAnimationFrame batching is now the ONLY render scheduler, coalescing
+    // bursts of synchronous store mutations into one DOM pass per frame.
+    // (Previously this debounced AND the Renderer re-scheduled with rAF — two
+    // batching layers with unpredictable combined latency.)
+    this.store.subscribe(() => {
       if (this._destroyed) return;
       this._renderFromStore();
-    }, DEFAULT_CONFIG.DEBOUNCE_RENDER_MS || 16));
+    });
   }
 
   _renderFromStore() {
@@ -569,37 +572,7 @@ class CardFrame {
    * @returns {Object} 校验/迁移后的数据
    */
   _checkDataVersion(data, options = {}) {
-    if (!data || typeof data !== 'object') {
-      throw new Error('导入数据无效：期望对象或 JSON 字符串');
-    }
-    const dataVersion = String(data.version || '1.0');
-    const currentVersion = String(CardFrame.VERSION);
-    const dataMajor = parseInt(dataVersion.split('.')[0], 10) || 0;
-    const currentMajor = parseInt(currentVersion.split('.')[0], 10) || 0;
-
-    if (dataMajor === currentMajor) {
-      return data;
-    }
-
-    return this._migrateData(data, dataMajor, currentMajor, options);
-  }
-
-  /**
-   * 迁移不兼容 major 版本的数据。
-   * @private
-   */
-  _migrateData(data, fromMajor, toMajor, options = {}) {
-    const migrate = options.migrate || CardFrame._migrations;
-    if (typeof migrate === 'function') {
-      const migrated = migrate(data, fromMajor, toMajor);
-      if (migrated && typeof migrated === 'object') {
-        return migrated;
-      }
-    }
-    throw new Error(
-      `导入数据版本不兼容：数据 major=${fromMajor}，当前 major=${toMajor}。` +
-      `请提供 options.migrate 迁移函数。`
-    );
+    return checkDataVersion(data, CardFrame.VERSION, options, CardFrame._migrations);
   }
 
   /**
@@ -607,17 +580,11 @@ class CardFrame {
    * @returns {Object} 导出的数据对象
    */
   exportData() {
-    return {
-      version: CardFrame.VERSION,
-      exportedAt: Date.now(),
-      cards: this.store.getAllCards(),
-      relationships: this.store.getAllRelationships(),
-      layoutMode: this.layoutEngine.mode,
-      metadata: {
-        cardCount: this.store.getAllCards().length,
-        relationshipCount: this.store.getAllRelationships().length
-      }
-    };
+    return exportData({
+      store: this.store,
+      layoutEngine: this.layoutEngine,
+      version: CardFrame.VERSION
+    });
   }
 
   /**
@@ -643,57 +610,12 @@ class CardFrame {
    * @fires layoutChanged - 布局模式改变时触发
    */
   importData(data, options = {}) {
-    if (typeof data === 'string') {
-      data = JSON.parse(data);
-    }
-
-    data = this._checkDataVersion(data, options);
-
-    const { mode = 'merge', clearBeforeImport = false } = options;
-
-    if (clearBeforeImport || mode === 'replace') {
-      this.store.getAllCards().forEach(c => this.store.removeCard(c.id));
-      this.store.getAllRelationships().forEach(r => this.store.removeRelationship(r.id));
-    }
-
-    let importedCards = 0;
-    let importedRelationships = 0;
-
-    if (data.cards) {
-      data.cards.forEach(cardData => {
-        if (mode === 'merge' && this.store.getCard(cardData.id)) {
-          this.store.updateCard(cardData);
-        } else {
-          this.store.addCard(cardData);
-        }
-        importedCards++;
-      });
-    }
-
-    if (data.relationships) {
-      data.relationships.forEach(relData => {
-        if (mode === 'merge' && this.store.getRelationship(relData.id)) {
-          this.store.updateRelationship(relData);
-        } else {
-          this.store.addRelationship(relData);
-        }
-        importedRelationships++;
-      });
-    }
-
-    if (data.layoutMode && !options.preserveLayout) {
-      this.layoutEngine.setMode(data.layoutMode);
-    }
-
-    this.store.notify();
-
-    return {
-      importedCards,
-      importedRelationships,
-      mode,
-      totalCards: this.store.getAllCards().length,
-      totalRelationships: this.store.getAllRelationships().length
-    };
+    return importData({
+      store: this.store,
+      layoutEngine: this.layoutEngine,
+      version: CardFrame.VERSION,
+      defaultMigrate: CardFrame._migrations
+    }, data, options);
   }
 
   // ─── Stats & Performance ──────────────────────────────────
@@ -831,6 +753,12 @@ class CardFrame {
     if (this._destroyed) return;
     this._destroyed = true;
 
+    // 0. Cancel any pending render frame the Renderer may have scheduled
+    if (this.renderer && this.renderer._rafId != null) {
+      cancelAnimationFrame(this.renderer._rafId);
+      this.renderer._rafId = null;
+    }
+
     // 1. Stop evolution engine (includes MetricsCollector timer)
     if (this.evolutionEngine) {
       this.evolutionEngine.stop();
@@ -886,19 +814,14 @@ class CardFrame {
       this.store._pool = null;
     }
 
-    // 10. Release global store static reference if it points to this instance
-    if (CardFrame._globalStore === this.store) {
-      CardFrame._globalStore = null;
-    }
-
-    // 11. Clean up container: remove rendered DOM + framework marker
+    // 10. Clean up container: remove rendered DOM + framework marker
     this.container.classList.remove('card-frame');
     this.container.innerHTML = '';
     if (this.container.__cardFrame === this) {
       delete this.container.__cardFrame;
     }
 
-    // 12. Null out sub-module references
+    // 11. Null out sub-module references
     // (store/typeRegistry/autoFixer/circuitBreaker/actionLogger kept for degraded access)
     this.renderer = null;
     this.layoutEngine = null;
@@ -919,7 +842,7 @@ class CardFrame {
    * @type {string}
    */
   static get VERSION() {
-    return '1.0.0';
+    return VERSION;
   }
 
   /**

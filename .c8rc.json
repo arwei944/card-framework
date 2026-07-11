@@ -1,0 +1,9 @@
+{
+  "include": ["dist/card-framework.cjs.js"],
+  "reporter": ["text", "lcov"],
+  "check-coverage": true,
+  "lines": 55,
+  "statements": 55,
+  "functions": 45,
+  "branches": 68
+}

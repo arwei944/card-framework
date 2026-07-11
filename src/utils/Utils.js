@@ -4,6 +4,9 @@
  * @module utils/Utils
  */
 
+import { escapeHtml, escapeAttr } from './escape.js';
+import { Security } from '../security/Security.js';
+
 export const Utils = {
   generateId(prefix = 'card') {
     const timestamp = Date.now().toString(36);
@@ -11,64 +14,26 @@ export const Utils = {
     return `${prefix}_${timestamp}_${hash}`;
   },
 
-  escapeHtml(str) {
-    if (str == null) return '';
-    const s = String(str);
-    const div = document.createElement('div');
-    div.textContent = s;
-    let result = div.innerHTML;
-    result = result.replace(/\//g, '&#x2F;');
-    result = result.replace(/`/g, '&#x60;');
-    result = result.replace(/=/g, '&#x3D;');
-    return result;
-  },
+  escapeHtml,
 
-  escapeAttr(str) {
-    if (str == null) return '';
-    const s = String(str);
-    return s.replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\//g, '&#x2F;')
-            .replace(/`/g, '&#x60;')
-            .replace(/=/g, '&#x3D;')
-            .replace(/\n/g, '&#10;')
-            .replace(/\r/g, '&#13;')
-            .replace(/\t/g, '&#9;');
-  },
+  escapeAttr,
 
-  // Security proxies — delegate to Security module (imported lazily to avoid circular deps)
+  // Security proxies — delegate to the canonical Security implementation.
+  // No circular dependency: Security depends only on escape primitives, not Utils.
   sanitizeHtml(html, options) {
-    // Lazy import via global to avoid circular dependency at module load time
-    // The Security module imports Utils, so we can't import Security at top level here.
-    // This will be resolved in Phase 4 when we refactor the dependency chain.
-    if (typeof globalThis.__CardFrameSecurity !== 'undefined') {
-      return globalThis.__CardFrameSecurity.sanitizeHtml(html, options);
-    }
-    return String(html);
+    return Security.sanitizeHtml(html, options);
   },
 
   sanitizeUrl(url) {
-    if (typeof globalThis.__CardFrameSecurity !== 'undefined') {
-      return globalThis.__CardFrameSecurity.sanitizeUrl(url);
-    }
-    return String(url);
+    return Security.sanitizeUrl(url);
   },
 
   sanitizeStyle(styleStr) {
-    if (typeof globalThis.__CardFrameSecurity !== 'undefined') {
-      return globalThis.__CardFrameSecurity.sanitizeStyle(styleStr);
-    }
-    return String(styleStr);
+    return Security.sanitizeStyle(styleStr);
   },
 
   isSafeUrl(url) {
-    if (typeof globalThis.__CardFrameSecurity !== 'undefined') {
-      return globalThis.__CardFrameSecurity.isSafeUrl(url);
-    }
-    return true;
+    return Security.isSafeUrl(url);
   },
 
   debounce(func, wait) {

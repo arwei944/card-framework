@@ -24,6 +24,7 @@ const ROOT = path.join(__dirname, '..');
 const ENTRY = path.join(ROOT, 'src', 'index.js');
 const DIST = path.join(ROOT, 'dist');
 const CSS_SRC = path.join(ROOT, 'src', 'card-framework.css');
+const DTS_SRC = path.join(ROOT, 'types', 'card-framework.d.ts');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -37,6 +38,15 @@ function copyCSS() {
     console.log('  ✓ card-framework.css');
   } else {
     console.warn('  ⚠ CSS source not found:', CSS_SRC);
+  }
+}
+
+function copyTypes() {
+  if (fs.existsSync(DTS_SRC)) {
+    fs.copyFileSync(DTS_SRC, path.join(DIST, 'card-framework.d.ts'));
+    console.log('  ✓ card-framework.d.ts');
+  } else {
+    console.warn('  ⚠ Type declarations not found:', DTS_SRC);
   }
 }
 
@@ -127,9 +137,10 @@ async function build() {
   });
   console.log('  ✓ card-framework.cjs.js');
 
-  // ─── 6. Copy CSS ───────────────────────────────────────
-  console.log('[6/6] CSS...');
+  // ─── 6. Copy CSS + type declarations ───────────────────
+  console.log('[6/6] CSS + types...');
   copyCSS();
+  copyTypes();
 
   // ─── Summary ───────────────────────────────────────────
   const files = fs.readdirSync(DIST).filter(f => !f.startsWith('.'));

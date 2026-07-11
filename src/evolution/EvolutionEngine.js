@@ -4,6 +4,7 @@
  */
 import { MetricsCollector } from './MetricsCollector.js';
 import { RuleEngine } from './RuleEngine.js';
+import { VERSION } from '../utils/constants.js';
 
 export class EvolutionEngine {
   constructor(frame, options, eventBus) {
@@ -120,7 +121,7 @@ export class EvolutionEngine {
     xhr.send(JSON.stringify({
       action: ruleResult.action,
       metrics: metrics,
-      frameVersion: CardFrame.version || '1.0.0'
+      frameVersion: VERSION
     }));
   }
 

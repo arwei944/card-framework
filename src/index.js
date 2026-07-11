@@ -102,7 +102,6 @@ CardFrame.EVENT_TYPES = EVENT_TYPES;
 CardFrame.DEFAULT_CONFIG = DEFAULT_CONFIG;
 CardFrame.CARD_STATUS = CARD_STATUS;
 CardFrame.RELATIONSHIP_TYPES = RELATIONSHIP_TYPES;
-CardFrame._globalStore = null;
 
 // ─── Global Singleton Instances ───────────────────────────
 // Original L7064-7077: Pre-created instances for static access.

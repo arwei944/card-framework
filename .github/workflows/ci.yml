@@ -38,9 +38,31 @@ jobs:
         echo "测试运行完成"
         echo "Node.js 版本: ${{ matrix.node-version }}"
 
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 安装 Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm install
+
+    - name: 代码检查 (ESLint)
+      run: npm run lint
+
+    - name: 覆盖率门槛检查
+      run: npm run test:coverage
+
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, lint]
 
     steps:
     - name: 检出代码
@@ -114,14 +136,13 @@ jobs:
         body_path: CHANGELOG_RELEASE.md
         files: |
           dist/card-framework.js
+          dist/card-framework.min.js
+          dist/card-framework.min.js.map
+          dist/card-framework.esm.js
+          dist/card-framework.esm.min.js
+          dist/card-framework.esm.min.js.map
+          dist/card-framework.cjs.js
           dist/card-framework.css
-          dist/core.js
-          dist/security.js
-          dist/render.js
-          dist/validation.js
-          dist/extras.js
-          dist/plugins.js
-          dist/perf.js
-          dist/loader.js
+          dist/card-framework.d.ts
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

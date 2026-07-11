@@ -74,14 +74,10 @@ export const defaultCardTypes = [
       {
         name: 'complete',
         label: '完成',
-        handler: (card) => {
+        handler: (card, store) => {
           card.status = card.status === 'completed' ? 'active' : 'completed';
-          if (card.store) {
-            card.store.updateCard(card);
-          } else {
-            const store = CardFrame._globalStore;
-            if (store) store.updateCard(card);
-          }
+          const target = store || card.store;
+          if (target) target.updateCard(card);
         }
       }
     ],

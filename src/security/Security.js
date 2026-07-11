@@ -3,7 +3,7 @@
  * @module security/Security
  */
 
-import { Utils } from '../utils/Utils.js';
+import { escapeHtml, escapeAttr } from '../utils/escape.js';
 
 export const Security = {
   _defaultAllowedTags: [
@@ -39,23 +39,65 @@ export const Security = {
     /@import\s+(url\s*)?["']?(javascript|data)\s*:/gi
   ],
 
+  // Tags whose entire subtree must be dropped rather than unwrapped. Unwrapping
+  // these (keeping their children) can activate mutation-XSS via foreign-content
+  // (svg/math) namespace confusion or re-parsed raw text (script/style/noscript).
+  _dangerousTags: [
+    'script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript',
+    'svg', 'math', 'link', 'meta', 'base', 'form', 'frame', 'frameset',
+    'applet', 'param', 'xml'
+  ],
+
+  /**
+   * Sanitize an untrusted HTML string against tag/attribute allowlists.
+   *
+   * THREAT MODEL — read before relying on this for untrusted input:
+   *  - This is a best-effort, dependency-free sanitizer intended to defend the
+   *    framework's own render pipeline against common XSS payloads (event
+   *    handlers, javascript: URLs, script/style injection, dangerous CSS).
+   *  - It is NOT a substitute for a formally audited sanitizer. For hostile,
+   *    user-generated HTML in high-risk contexts, prefer DOMPurify or render
+   *    into a sandboxed context.
+   *  - Mutation-XSS (mXSS) is mitigated by (a) dropping foreign-content and
+   *    raw-text containers entirely and (b) re-sanitizing until the output is
+   *    byte-stable, but no allowlist sanitizer can guarantee immunity against
+   *    every browser parser quirk.
+   */
   sanitizeHtml(html, options = {}) {
     if (html == null) return '';
-    const str = String(html);
+    let str = String(html);
+    // Idempotent multi-pass: an allowlist sanitizer's serialized output can, when
+    // re-parsed by the browser, mutate back into a dangerous shape (mXSS). Keep
+    // sanitizing until the result stops changing (bounded to avoid pathological loops).
+    for (let pass = 0; pass < 3; pass++) {
+      const next = this._sanitizeOnce(str, options);
+      if (next === str) return next;
+      str = next;
+    }
+    return str;
+  },
 
+  _sanitizeOnce(str, options = {}) {
     const allowedTags = options.allowedTags || this._defaultAllowedTags;
     const allowedAttrs = options.allowedAttrs || this._defaultAllowedAttrs;
     const allowedTagsSet = new Set(allowedTags.map(t => t.toLowerCase()));
+    const dangerousTagsSet = new Set(this._dangerousTags);
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = str;
 
     const allElements = tempDiv.getElementsByTagName('*');
     const elementsToRemove = [];
+    const elementsToDrop = [];
 
     for (let i = allElements.length - 1; i >= 0; i--) {
       const el = allElements[i];
       const tagName = el.tagName.toLowerCase();
+
+      if (dangerousTagsSet.has(tagName)) {
+        elementsToDrop.push(el);
+        continue;
+      }
 
       if (!allowedTagsSet.has(tagName)) {
         elementsToRemove.push(el);
@@ -112,6 +154,14 @@ export const Security = {
       attrsToRemove.forEach(attrName => el.removeAttribute(attrName));
     }
 
+    // Dangerous containers: remove the whole subtree (do NOT preserve children).
+    elementsToDrop.forEach(el => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
+
+    // Disallowed-but-benign tags: unwrap, preserving their (already-sanitized) children.
     elementsToRemove.forEach(el => {
       const parent = el.parentNode;
       if (parent) {
@@ -245,13 +295,13 @@ export const Security = {
     return { sanitized, changed, removedProps };
   },
 
-  // Delegate to Utils to avoid code duplication
+  // Delegate to the shared escape primitives (no Utils dependency — avoids a cycle)
   escapeHtml(str) {
-    return Utils.escapeHtml(str);
+    return escapeHtml(str);
   },
 
   escapeAttr(str) {
-    return Utils.escapeAttr(str);
+    return escapeAttr(str);
   },
 
   checkCSPCompatibility() {
@@ -327,7 +377,7 @@ export const Security = {
     if (propSchema.safe && typeof sanitizedValue === 'string') {
       if (type === 'string' && !propSchema.allowHtml) {
         const beforeEscape = sanitizedValue;
-        sanitizedValue = Utils.escapeHtml(sanitizedValue);
+        sanitizedValue = escapeHtml(sanitizedValue);
         if (sanitizedValue !== beforeEscape) {
           wasSanitized = true;
         }
@@ -420,8 +470,3 @@ export const Security = {
     };
   }
 };
-
-// Register Security on globalThis so Utils can delegate to it without circular imports
-if (typeof globalThis !== 'undefined') {
-  globalThis.__CardFrameSecurity = Security;
-}
