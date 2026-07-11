@@ -18,5 +18,5 @@
     "src/core/CardFrame.js"
   ],
   "requireReview": true,
-  "dryRun": false
+  "dryRun": true
 }

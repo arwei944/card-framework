@@ -42,6 +42,7 @@ import { ThemeManager } from './extras/ThemeManager.js';
 import { I18nManager } from './extras/I18nManager.js';
 import { RelationshipEngine } from './extras/RelationshipEngine.js';
 import { BackendSync } from './extras/BackendSync.js';
+import { Monitor } from './extras/Monitor.js';
 
 // ─── Plugins ──────────────────────────────────────────────
 import { PluginManager } from './plugins/PluginManager.js';
@@ -88,6 +89,7 @@ CardFrame.ThemeManager = ThemeManager;
 CardFrame.I18nManager = I18nManager;
 CardFrame.RelationshipEngine = RelationshipEngine;
 CardFrame.BackendSync = BackendSync;
+CardFrame.Monitor = Monitor;
 CardFrame.VirtualScroller = VirtualScroller;
 CardFrame.MetricsCollector = MetricsCollector;
 CardFrame.RuleEngine = RuleEngine;
@@ -172,6 +174,7 @@ export {
   I18nManager,
   RelationshipEngine,
   BackendSync,
+  Monitor,
   VirtualScroller,
   EvolutionEngine,
   MetricsCollector,

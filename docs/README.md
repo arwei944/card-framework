@@ -20,6 +20,7 @@
 | [getting-started.md](getting-started.md) | 快速开始 |
 | **[evolution-refactoring-plan.md](evolution-refactoring-plan.md)** | **自进化子系统重构方案（最新规划）** |
 | [backend-integration.md](backend-integration.md) | **业务数据后端对接：BackendSync 适配器用法 + 示例服务** |
+| [deployment.md](deployment.md) | **生产就绪：鉴权/一致性/可观测性/CI/SSR-SEO 落地说明** |
 | `../evolution-agent/README.md` | 进化 Agent 真实状态（实验性、无鉴权、无 LLM） |
 
 ## 📜 历史记录（仅作过程留痕，结论已不适用）

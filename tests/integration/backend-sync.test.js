@@ -113,4 +113,43 @@ describe('BackendSync', function() {
     assert.ok(errored, 'expected onError to fire');
     sync.destroy();
   });
+
+  it('should trigger onConflict on ETag 409 (optimistic concurrency)', async function() {
+    const mod = require('../../dist/card-framework.cjs.js');
+    const conflict = {
+      ok: false, status: 409, headers: { get: () => 'v1' },
+      text: () => Promise.resolve(JSON.stringify({ conflict: true, snapshot: { version: '1.0.0', cards: [{ id: 'srv', type: 'note', props: { title: 'server' }, status: 'active', position: { x: 0, y: 0 }, style: {} }], relationships: [], layoutMode: 'free', metadata: {} } }))
+    };
+    const rejecting = function () { return Promise.resolve(conflict); };
+    let conflicted = null;
+    const sync = new mod.BackendSync(frame, { fetchImpl: rejecting, pullOnStart: false, autoPush: false, concurrency: 'etag', onConflict: (s) => { conflicted = s; } });
+    sync.start();
+    frame.createCard('note', { title: 'local' });
+    await sync.pushNow();
+    assert.ok(conflicted, 'expected onConflict to fire on 409');
+    assert.strictEqual(conflicted.cards[0].props.title, 'server');
+    sync.destroy();
+  });
+
+  it('should buffer failed pushes into an offline queue and replay', async function() {
+    const mod = require('../../dist/card-framework.cjs.js');
+    const failing = function () { return Promise.reject(new Error('offline')); };
+    const sync = new mod.BackendSync(frame, { fetchImpl: failing, pullOnStart: false, autoPush: false, concurrency: 'etag' });
+    sync.start();
+    frame.createCard('note', { title: 'a' });
+    await sync.pushNow();
+    assert.strictEqual(sync._queueIsEmpty(), false, 'change should be queued while offline');
+
+    let sent = null;
+    const ok = function (url, init) {
+      if (init && init.method === 'POST') { sent = JSON.parse(init.body); return Promise.resolve({ ok: true, status: 200, headers: { get: () => 'v2' }, json: () => Promise.resolve({ ok: true }), text: () => Promise.resolve('') }); }
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => 'v2' }, json: () => Promise.resolve({}), text: () => Promise.resolve('') });
+    };
+    sync._fetchImpl = ok;
+    await sync._replay();
+    assert.ok(sent, 'queued payload should be replayed');
+    assert.strictEqual(sync._queueIsEmpty(), true, 'queue should be cleared after successful replay');
+    assert.strictEqual(sent.cards.length, 1, 'replayed full snapshot should contain the card');
+    sync.destroy();
+  });
 });

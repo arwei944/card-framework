@@ -541,9 +541,11 @@ export interface CardFrameInstance {
   emit<T = any>(eventName: EventName, data?: T): void;
 
   // 导入导出
-  exportData(): { cards: Card[]; relationships: Relationship[]; exportedAt: number };
+  exportData(): { version: string; exportedAt: number; cards: Card[]; relationships: Relationship[]; layoutMode: LayoutMode; metadata: any };
   exportJSON(): string;
-  importData(data: { cards?: Card[]; relationships?: Relationship[] } | string, options?: { merge?: boolean }): void;
+  importData(data: { version?: string; cards?: Card[]; relationships?: Relationship[]; layoutMode?: LayoutMode } | string,
+    options?: { mode?: 'merge' | 'replace'; clearBeforeImport?: boolean; preserveLayout?: boolean; migrate?: (data: any, fromMajor: number, toMajor: number) => any }):
+    { importedCards: number; importedRelationships: number; mode: string; totalCards: number; totalRelationships: number };
 
   // 统计
   getStats(): CardFrameStats;
@@ -626,6 +628,8 @@ declare const CardFrame: {
   I18nManager: typeof I18nManager;
   CircuitBreaker: typeof CircuitBreaker;
   PluginManager: typeof PluginManager;
+  BackendSync: typeof BackendSync;
+  Monitor: MonitorStatic;
 
   // 全局实例
   store: Store;
@@ -646,6 +650,55 @@ declare const CardFrame: {
   isModuleLoaded(moduleName: string): boolean;
   version: string;
 };
+
+// ============================================================
+// 业务数据后端同步 (BackendSync)
+// ============================================================
+
+export interface BackendSyncOptions {
+  endpoint?: string;
+  mode?: 'full' | 'incremental';
+  debounceMs?: number;
+  pullOnStart?: boolean;
+  autoPush?: boolean;
+  authToken?: string | (() => string);
+  headers?: Record<string, string>;
+  concurrency?: 'none' | 'etag';
+  offlineQueue?: boolean;
+  onError?: (err: Error, ctx: { phase: string; [k: string]: any }) => void;
+  onConflict?: (serverSnapshot: any) => void;
+  fetchImpl?: (url: string, init: any) => Promise<any>;
+}
+
+export class BackendSync {
+  constructor(frame: CardFrameInstance, options?: BackendSyncOptions);
+  start(): this;
+  stop(): this;
+  destroy(): void;
+  pull(): Promise<any>;
+  pushNow(): Promise<boolean>;
+  _queueIsEmpty(): boolean;
+}
+
+// ============================================================
+// 可观测性 (Monitor)
+// ============================================================
+
+export interface MonitorOptions {
+  endpoint?: string;
+  token?: string | (() => string);
+  batchSize?: number;
+  flushMs?: number;
+  fetchImpl?: (url: string, init: any) => Promise<any>;
+  onError?: (err: Error) => void;
+}
+
+export interface MonitorStatic {
+  init(options?: MonitorOptions): void;
+  report(error: Error | { type: string; message: string; context?: any }): void;
+  flush(): void;
+  destroy(): void;
+}
 
 // 浏览器全局
 declare global {

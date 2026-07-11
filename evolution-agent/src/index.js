@@ -23,6 +23,18 @@ config.reviewToken = process.env[config.reviewTokenEnv || 'CARD_EVOLUTION_REVIEW
 config.requireReview = config.requireReview !== false;
 config.dryRun = !!config.dryRun;
 
+// ── Production safety lock ───────────────────────────────────────
+// The evolution agent can MODIFY SOURCE CODE. In production that must never
+// happen automatically. Force safe defaults when NODE_ENV=production.
+var isProd = process.env.NODE_ENV === 'production';
+if (isProd) {
+  if (!config.dryRun || !config.requireReview) {
+    console.log('[evolution-agent] PRODUCTION MODE: forcing dryRun=true and requireReview=true to prevent automatic source modification.');
+  }
+  config.dryRun = true;
+  config.requireReview = true;
+}
+
 var orchestrator = new EvolutionOrchestrator(config);
 
 var wss = null;
@@ -168,6 +180,9 @@ server.listen(config.port, config.bind, function() {
   }
   if (config.dryRun) {
     console.log('[evolution-agent] dryRun enabled — no commits will be created.');
+  }
+  if (isProd) {
+    console.log('[evolution-agent] PRODUCTION: source-modifying endpoints are inert (dryRun + requireReview enforced). Use a separate dev/staging agent to evolve, then promote via review.');
   }
   console.log('[evolution-agent] capabilities: ' + JSON.stringify(orchestrator.getCapabilities()));
 });
