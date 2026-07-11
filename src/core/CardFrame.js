@@ -1,0 +1,802 @@
+/**
+ * CardFrame - Main orchestrator class
+ *
+ * Wires together all subsystems: Store, TypeRegistry, Renderer, LayoutEngine,
+ * AutoFixer, RealTimeValidator, PluginManager, EventBus, and more.
+ *
+ * Extracted from original IIFE L6088-7063.
+ * Key changes:
+ * - Creates its own EventBus instance (was module-level singleton)
+ * - Injects EventBus into all sub-modules via constructor params
+ * - All eventBus.on/off/once/emit replaced with this.eventBus.*
+ * - evolveNow() converted from ES5 var/for-i to ES6 const/for-of
+ * - destroy() uses this.eventBus.clear() instead of this.eventBus.events.clear()
+ * - importData() P0 Bug #2 (bypassing Store API) marked with TODO for Phase 4
+ */
+
+import { EventBus } from './EventBus.js';
+import { Store } from './Store.js';
+import { TypeRegistry } from './TypeRegistry.js';
+import { Renderer } from '../render/Renderer.js';
+import { LayoutEngine } from '../render/LayoutEngine.js';
+import { AutoFixer } from '../validation/AutoFixer.js';
+import { RealTimeValidator } from '../validation/RealTimeValidator.js';
+import { PluginManager } from '../plugins/PluginManager.js';
+import { CircuitBreaker } from '../security/CircuitBreaker.js';
+import { ActionLogger } from '../evolution/ActionLogger.js';
+import { GlobalErrorHandler } from '../evolution/GlobalErrorHandler.js';
+import { PerfPanel } from '../evolution/PerfPanel.js';
+import { CardObjectPool } from '../perf/CardObjectPool.js';
+import { ThemeManager } from '../extras/ThemeManager.js';
+import { I18nManager } from '../extras/I18nManager.js';
+import { RelationshipEngine } from '../extras/RelationshipEngine.js';
+import { VirtualScroller } from '../render/VirtualScroller.js';
+import { EvolutionEngine } from '../evolution/EvolutionEngine.js';
+import { defaultCardTypes } from './defaultCardTypes.js';
+import { Utils } from '../utils/Utils.js';
+import { FeedbackSystem } from '../utils/FeedbackSystem.js';
+import { Perf } from '../perf/Perf.js';
+import { EVENT_TYPES, DEFAULT_CONFIG } from '../utils/constants.js';
+
+class CardFrame {
+  constructor(container, options = {}) {
+    if (typeof container === 'string') {
+      const el = document.querySelector(container);
+      if (!el) {
+        throw new Error(`找不到容器元素: ${container}`);
+      }
+      container = el;
+    }
+
+    if (container.__cardFrame) {
+      return container.__cardFrame;
+    }
+
+    this.container = container;
+    this.container.classList.add('card-frame');
+    this.container.__cardFrame = this;
+    this._options = options;
+
+    // Create EventBus first — all sub-modules depend on it
+    this.eventBus = new EventBus();
+
+    // Core subsystems with EventBus injection
+    this.store = new Store(this.eventBus);
+    this.typeRegistry = new TypeRegistry();
+    this.renderer = new Renderer(container, this.typeRegistry, this.store, this.eventBus);
+    this.layoutEngine = new LayoutEngine(container, this.store, this.renderer, this.eventBus);
+    this.autoFixer = new AutoFixer(this.typeRegistry, this.store, container, this.eventBus);
+    this.realTimeValidator = new RealTimeValidator(container, this.typeRegistry, this.store, this.autoFixer, this.eventBus);
+    this.pluginManager = new PluginManager(this);
+    this.circuitBreaker = new CircuitBreaker({ ...options.circuitBreaker, eventBus: this.eventBus });
+    this.actionLogger = new ActionLogger({ ...options.actionLogger, eventBus: this.eventBus });
+    this.globalErrorHandler = new GlobalErrorHandler(this.eventBus);
+    this.perfPanel = new PerfPanel();
+    this.cardObjectPool = new CardObjectPool(options.cardPool || {});
+    this.themeManager = new ThemeManager(container, this.eventBus);
+    this.i18n = new I18nManager(null, this.eventBus);
+    this.relationshipEngine = new RelationshipEngine(container, this.store, this.eventBus);
+    this.virtualScroller = new VirtualScroller(container, this.store, this.renderer, {
+      overscan: options.overscan || DEFAULT_CONFIG.VIRTUAL_SCROLL_OVERSCAN
+    });
+
+    // Inject object pool into Store for card pooling
+    this.store._pool = this.cardObjectPool;
+
+    // Evolution engine (optional)
+    this.evolutionEngine = options.evolution !== false
+      ? new EvolutionEngine(this, options.evolution || {}, this.eventBus)
+      : null;
+    if (this.evolutionEngine) {
+      this.evolutionEngine.start();
+    }
+
+    // Wire AutoFixer → RealTimeValidator reference
+    this.autoFixer._getValidator = () => this.realTimeValidator;
+
+    // Register built-in card types
+    defaultCardTypes.forEach(type => this.typeRegistry.register(type));
+
+    // Subscribe to store changes — debounced re-render
+    this.store.subscribe(Utils.debounce(() => {
+      if (this._destroyed) return;
+      if (this.realTimeValidator) this.realTimeValidator.pause();
+      if (this.virtualScroller && this.virtualScroller.isEnabled()) {
+        this.virtualScroller.refresh();
+      } else if (this.renderer) {
+        this.renderer.renderCards(this.store.getAllCards());
+      }
+      if (this.layoutEngine && this.layoutEngine.mode === 'canvas') {
+        this.layoutEngine.syncPositions();
+      }
+      if (this.realTimeValidator) this.realTimeValidator.resume();
+    }, 16));
+
+    // TODO: P0 Bug #1 — debounce with hardcoded 16ms should use DEFAULT_CONFIG.DEBOUNCE_RENDER_MS
+    // Will be fixed in Phase 4 (T4.01)
+
+    if (options.virtualScroll) {
+      this.virtualScroller.enable();
+    }
+
+    if (options.plugins) {
+      options.plugins.forEach(plugin => this.installPlugin(plugin));
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this._initFromDOM());
+    } else {
+      this._initFromDOM();
+    }
+
+    if (options.autoValidate !== false) {
+      this.realTimeValidator.start();
+    }
+
+    // Backward-compat: static reference to the most recent store
+    // Used by defaultCardTypes.js — will be removed in Phase 4
+    CardFrame._globalStore = this.store;
+  }
+
+  _initFromDOM() {
+    const cardEls = this.container.querySelectorAll('cf-card');
+    cardEls.forEach(el => {
+      if (!el.dataset.cardId && el._waitingForFrame) {
+        el._waitingForFrame = false;
+        el._initCard();
+      }
+    });
+  }
+
+  // ─── Card CRUD ────────────────────────────────────────────
+
+  /**
+   * 创建一张新卡片
+   * @param {string} type - 卡片类型，必须是已注册的非抽象类型
+   * @param {Object} props - 卡片属性对象
+   * @returns {Object} 创建的卡片对象
+   * @fires cardAdded
+   * @fires cardAutoFixed - 如果验证失败且自动修复成功
+   */
+  createCard(type, props) {
+    const execFn = (cb) => this.circuitBreaker ? this.circuitBreaker.execute(cb) : cb();
+    return execFn(() => {
+      const cardType = this.typeRegistry.get(type);
+      if (cardType && cardType.abstract) {
+        throw new Error(`不能创建抽象类型 "${type}" 的卡片`);
+      }
+
+      const card = {
+        id: Utils.generateId('card'),
+        type,
+        props: { ...props },
+        position: { x: 0, y: 0 },
+        status: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+
+      const validation = this.typeRegistry.validate(card);
+      if (!validation.valid) {
+        validation.errors.forEach(err => {
+          FeedbackSystem.warn(err.message);
+        });
+        this.autoFixer.fixCard(card, validation);
+      }
+
+      this.store.addCard(card);
+      this.actionLogger.record('addCard', { card: { ...card } });
+      return card;
+    }, null);
+  }
+
+  /**
+   * 更新卡片信息
+   * @param {Object} card - 完整的卡片对象（必须包含 id）
+   * @returns {Object|null} 更新后的卡片对象，卡片不存在则返回 null
+   * @fires cardUpdated
+   */
+  updateCard(card) {
+    return this.circuitBreaker.execute(() => {
+      const previousState = this.store.getCard(card.id);
+      const result = this.store.updateCard(card);
+      if (previousState) {
+        this.actionLogger.record('updateCard', {
+          cardId: card.id,
+          previousState: { ...previousState.props },
+          newState: { ...card.props }
+        });
+      }
+      return result;
+    }, card.id);
+  }
+
+  /**
+   * 删除指定卡片
+   * @param {string} id - 卡片 ID
+   * @returns {boolean} 删除成功返回 true，卡片不存在返回 false
+   * @fires cardRemoved
+   */
+  removeCard(id) {
+    return this.circuitBreaker.execute(() => {
+      const card = this.store.getCard(id);
+      const result = this.store.removeCard(id);
+      if (card && result) {
+        this.actionLogger.record('removeCard', { card: { ...card } });
+      }
+      return result;
+    }, id);
+  }
+
+  /**
+   * 获取指定 ID 的卡片
+   * @param {string} id - 卡片 ID
+   * @returns {Object|undefined} 卡片对象，不存在则返回 undefined
+   */
+  getCard(id) {
+    return this.store.getCard(id);
+  }
+
+  /**
+   * 获取所有卡片
+   * @returns {Array<Object>} 卡片对象数组
+   */
+  getAllCards() {
+    return this.store.getAllCards();
+  }
+
+  /**
+   * 根据类型获取卡片
+   * @param {string} type - 卡片类型
+   * @returns {Array<Object>} 指定类型的卡片对象数组
+   */
+  getCardsByType(type) {
+    return this.store.getCardsByType(type);
+  }
+
+  // ─── Batch Operations ─────────────────────────────────────
+
+  /**
+   * 批量创建卡片
+   * @param {Array<Object>} cards - 卡片数据数组，每项包含 type 和 props
+   * @returns {Object} 结果对象，包含 success 和 errors
+   * @fires cardAdded - 每张成功创建的卡片都会触发
+   * @fires frameworkError - 每张创建失败的卡片都会触发
+   */
+  batchCreateCards(cards) {
+    const results = [];
+    const errors = [];
+
+    cards.forEach((cardData, index) => {
+      try {
+        const card = this.createCard(cardData.type, cardData.props || {});
+        if (cardData.id) card.id = cardData.id;
+        if (cardData.position) card.position = cardData.position;
+        if (cardData.status) card.status = cardData.status;
+        if (cardData.style) card.style = cardData.style;
+        results.push(card);
+      } catch (e) {
+        errors.push({ index, error: e.message, cardData });
+        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
+          type: 'batch_error',
+          message: `批量创建卡片失败 (索引 ${index}): ${e.message}`,
+          error: e,
+          context: { operation: 'batchCreateCards', index, cardData },
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    return { success: results, errors };
+  }
+
+  /**
+   * 批量更新卡片
+   * @param {Array<Object>} updates - 更新数据数组，每项包含 id 及要更新的字段
+   * @returns {Object} 结果对象，包含 success 和 errors
+   * @fires cardUpdated - 每张成功更新的卡片都会触发
+   * @fires frameworkError - 每张更新失败的卡片都会触发
+   */
+  batchUpdateCards(updates) {
+    const results = [];
+    const errors = [];
+
+    updates.forEach((update, index) => {
+      try {
+        const card = this.getCard(update.id);
+        if (!card) {
+          errors.push({ index, error: `卡片 ${update.id} 不存在`, update });
+          return;
+        }
+        const updated = { ...card, ...update, id: update.id };
+        const result = this.updateCard(updated);
+        results.push(result);
+      } catch (e) {
+        errors.push({ index, error: e.message, update });
+        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
+          type: 'batch_error',
+          message: `批量更新卡片失败 (索引 ${index}): ${e.message}`,
+          error: e,
+          context: { operation: 'batchUpdateCards', index, update },
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    return { success: results, errors };
+  }
+
+  /**
+   * 批量删除卡片
+   * @param {Array<string>} ids - 要删除的卡片 ID 数组
+   * @returns {Object} 结果对象，包含 success 和 errors
+   * @fires cardRemoved - 每张成功删除的卡片都会触发
+   * @fires frameworkError - 每张删除失败的卡片都会触发
+   */
+  batchRemoveCards(ids) {
+    const results = [];
+    const errors = [];
+
+    ids.forEach((id, index) => {
+      try {
+        const success = this.removeCard(id);
+        if (success) {
+          results.push(id);
+        } else {
+          errors.push({ index, error: `卡片 ${id} 删除失败`, id });
+        }
+      } catch (e) {
+        errors.push({ index, error: e.message, id });
+        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
+          type: 'batch_error',
+          message: `批量删除卡片失败 (索引 ${index}): ${e.message}`,
+          error: e,
+          context: { operation: 'batchRemoveCards', index, id },
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    return { success: results, errors };
+  }
+
+  // ─── Action History (Undo/Redo) ───────────────────────────
+
+  undo() {
+    return this.actionLogger.undo(this.store);
+  }
+
+  redo() {
+    return this.actionLogger.redo(this.store);
+  }
+
+  rollback(timestamp) {
+    return this.actionLogger.rollback(timestamp, this.store);
+  }
+
+  getActionHistory() {
+    return this.actionLogger.getHistory();
+  }
+
+  clearActionHistory() {
+    this.actionLogger.clear();
+  }
+
+  // ─── Relationships ────────────────────────────────────────
+
+  /**
+   * 创建卡片之间的关系
+   * @param {string} sourceId - 源卡片 ID
+   * @param {string} targetId - 目标卡片 ID
+   * @param {string} [type='reference'] - 关系类型
+   * @param {Object} [data={}] - 附加的关系数据
+   * @returns {Object} 创建的关系对象
+   * @fires relationshipAdded
+   */
+  createRelationship(sourceId, targetId, type = 'reference', data = {}) {
+    const rel = this.store.addRelationship({
+      sourceId,
+      targetId,
+      type,
+      data
+    });
+    if (rel) {
+      this.actionLogger.record('addRelationship', { relationship: { ...rel } });
+    }
+    return rel;
+  }
+
+  /**
+   * 删除指定关系
+   * @param {string} id - 关系 ID
+   * @returns {boolean} 删除成功返回 true
+   * @fires relationshipRemoved
+   */
+  removeRelationship(id) {
+    const rel = this.store.getRelationship(id);
+    const result = this.store.removeRelationship(id);
+    if (rel && result) {
+      this.actionLogger.record('removeRelationship', { relationship: { ...rel } });
+    }
+    return result;
+  }
+
+  getRelationship(id) {
+    return this.store.getRelationship(id);
+  }
+
+  getAllRelationships() {
+    return this.store.getAllRelationships();
+  }
+
+  getRelationshipsByCard(cardId) {
+    return this.store.getRelationshipsByCard(cardId);
+  }
+
+  getRelationshipsByType(type) {
+    return this.store.getRelationshipsByType(type);
+  }
+
+  // ─── Layout ───────────────────────────────────────────────
+
+  /**
+   * 设置布局模式
+   * @param {string} mode - 布局模式：'stream' 或 'canvas'
+   * @fires layoutChanged
+   */
+  setLayoutMode(mode) {
+    this.layoutEngine.setMode(mode);
+  }
+
+  /**
+   * 获取当前布局模式
+   * @returns {string} 当前布局模式
+   */
+  getLayoutMode() {
+    return this.layoutEngine.getMode();
+  }
+
+  // ─── Plugin Management ────────────────────────────────────
+
+  /**
+   * 安装插件
+   * @param {Object} pluginDef - 插件定义对象
+   * @returns {boolean} 安装成功返回 true
+   * @fires pluginInstalled
+   * @fires frameworkError - 插件安装失败时触发
+   */
+  installPlugin(pluginDef) {
+    return this.pluginManager.install(pluginDef);
+  }
+
+  /**
+   * 卸载插件
+   * @param {string} pluginName - 插件名称
+   * @returns {boolean} 卸载成功返回 true
+   * @fires pluginUninstalled
+   */
+  uninstallPlugin(pluginName) {
+    return this.pluginManager.uninstall(pluginName);
+  }
+
+  /**
+   * 启用插件
+   * @param {string} pluginName - 插件名称
+   * @returns {boolean} 启用成功返回 true
+   * @fires pluginEnabled
+   */
+  enablePlugin(pluginName) {
+    return this.pluginManager.enable(pluginName);
+  }
+
+  /**
+   * 禁用插件
+   * @param {string} pluginName - 插件名称
+   * @returns {boolean} 禁用成功返回 true
+   * @fires pluginDisabled
+   */
+  disablePlugin(pluginName) {
+    return this.pluginManager.disable(pluginName);
+  }
+
+  // ─── Event Bus Proxy ──────────────────────────────────────
+
+  on(eventName, listener) {
+    this.eventBus.on(eventName, listener);
+  }
+
+  off(eventName, listener) {
+    this.eventBus.off(eventName, listener);
+  }
+
+  once(eventName, listener) {
+    this.eventBus.once(eventName, listener);
+  }
+
+  // ─── Data Import/Export ───────────────────────────────────
+
+  /**
+   * 导出数据（返回对象格式）
+   * @returns {Object} 导出的数据对象
+   */
+  exportData() {
+    return {
+      version: '1.0',
+      exportedAt: Date.now(),
+      cards: this.store.getAllCards(),
+      relationships: this.store.getAllRelationships(),
+      layoutMode: this.layoutEngine.mode,
+      metadata: {
+        cardCount: this.store.getAllCards().length,
+        relationshipCount: this.store.getAllRelationships().length
+      }
+    };
+  }
+
+  /**
+   * 导出数据（返回 JSON 字符串）
+   * @returns {string} JSON 格式的字符串
+   */
+  exportJSON() {
+    return JSON.stringify(this.exportData(), null, 2);
+  }
+
+  /**
+   * 导入数据
+   * @param {Object|string} data - 要导入的数据（对象或 JSON 字符串）
+   * @param {Object} [options] - 导入选项
+   * @param {string} [options.mode='merge'] - 导入模式：'merge' 或 'replace'
+   * @param {boolean} [options.clearBeforeImport=false] - 导入前是否清空现有数据
+   * @param {boolean} [options.preserveLayout=false] - 是否保留当前布局模式
+   * @returns {Object} 导入结果统计
+   * @fires cardAdded - 新增卡片时触发
+   * @fires cardUpdated - 更新卡片时触发
+   * @fires relationshipAdded - 新增关系时触发
+   * @fires relationshipRemoved - 删除关系时触发
+   * @fires layoutChanged - 布局模式改变时触发
+   */
+  importData(data, options = {}) {
+    if (typeof data === 'string') {
+      data = JSON.parse(data);
+    }
+
+    const { mode = 'merge', clearBeforeImport = false } = options;
+
+    if (clearBeforeImport || mode === 'replace') {
+      this.store.getAllCards().forEach(c => this.store.removeCard(c.id));
+      this.store.getAllRelationships().forEach(r => this.store.removeRelationship(r.id));
+    }
+
+    let importedCards = 0;
+    let importedRelationships = 0;
+
+    if (data.cards) {
+      data.cards.forEach(cardData => {
+        if (mode === 'merge' && this.store.getCard(cardData.id)) {
+          this.store.updateCard(cardData);
+        } else {
+          this.store.addCard(cardData);
+        }
+        importedCards++;
+      });
+    }
+
+    if (data.relationships) {
+      data.relationships.forEach(relData => {
+        if (mode === 'merge' && this.store.getRelationship(relData.id)) {
+          this.store.updateRelationship(relData);
+        } else {
+          this.store.addRelationship(relData);
+        }
+        importedRelationships++;
+      });
+    }
+
+    if (data.layoutMode && !options.preserveLayout) {
+      this.layoutEngine.setMode(data.layoutMode);
+    }
+
+    this.store.notify();
+
+    return {
+      importedCards,
+      importedRelationships,
+      mode,
+      totalCards: this.store.getAllCards().length,
+      totalRelationships: this.store.getAllRelationships().length
+    };
+  }
+
+  // ─── Stats & Performance ──────────────────────────────────
+
+  /**
+   * 获取框架统计信息
+   * @returns {Object} 统计对象
+   */
+  getStats() {
+    return {
+      cards: {
+        total: this.store.getAllCards().length,
+        byType: this._getCardTypeStats()
+      },
+      relationships: {
+        total: this.store.getAllRelationships().length
+      },
+      plugins: {
+        total: this.pluginManager.getAll().length,
+        enabled: this.pluginManager.getAll().filter(p => p.enabled).length
+      },
+      layout: {
+        mode: this.layoutEngine.mode,
+        zoom: this.layoutEngine.zoom
+      },
+      circuitBreaker: this.circuitBreaker.getStats(),
+      autoFixer: this.autoFixer.getStats(),
+      performance: Perf.getStats()
+    };
+  }
+
+  getPerfStats() {
+    return Perf.getStats();
+  }
+
+  enablePerfPanel() {
+    this.perfPanel.enable(this.container);
+  }
+
+  disablePerfPanel() {
+    this.perfPanel.disable();
+  }
+
+  enableGlobalErrorHandler() {
+    this.globalErrorHandler.enable();
+  }
+
+  disableGlobalErrorHandler() {
+    this.globalErrorHandler.disable();
+  }
+
+  getGlobalErrorStats() {
+    return this.globalErrorHandler.getErrorStats();
+  }
+
+  enableVirtualScroll(options = {}) {
+    if (this.virtualScroller) {
+      this.virtualScroller.enable(options);
+    }
+  }
+
+  disableVirtualScroll() {
+    if (this.virtualScroller) {
+      this.virtualScroller.disable();
+      this.renderer.forceFullRender(this.store.getAllCards());
+    }
+  }
+
+  isVirtualScrollEnabled() {
+    return this.virtualScroller ? this.virtualScroller.isEnabled() : false;
+  }
+
+  // ─── Internal Helpers ─────────────────────────────────────
+
+  _getCardTypeStats() {
+    const stats = {};
+    this.store.getAllCards().forEach(card => {
+      stats[card.type] = (stats[card.type] || 0) + 1;
+    });
+    return stats;
+  }
+
+  toJSON() {
+    return this.store.toJSON();
+  }
+
+  // ─── Static Factory Methods ───────────────────────────────
+
+  static fromJSON(data) {
+    const container = document.createElement('div');
+    const frame = new CardFrame(container);
+    const store = Store.fromJSON(data, frame.eventBus);
+    frame.store = store;
+    store.subscribe(Utils.debounce(() => {
+      frame.renderer.renderCards(store.getAllCards());
+    }, 16));
+    return frame;
+  }
+
+  static getPerfStats() {
+    return Perf.getStats();
+  }
+
+  static from(selector) {
+    const container = document.querySelector(selector);
+    if (!container) {
+      throw new Error(`找不到容器元素: ${selector}`);
+    }
+    return new CardFrame(container);
+  }
+
+  // ─── Evolution ────────────────────────────────────────────
+
+  getEvolutionHistory() {
+    return this.evolutionEngine ? this.evolutionEngine.getEvolutionHistory() : [];
+  }
+
+  getMetricsSnapshot() {
+    return this.evolutionEngine ? this.evolutionEngine.getMetrics() : null;
+  }
+
+  evolveNow() {
+    if (this.evolutionEngine) {
+      const metrics = this.evolutionEngine.metricsCollector.getSnapshot();
+      const actions = this.evolutionEngine.ruleEngine.evaluate(metrics);
+      for (const action of actions) {
+        this.evolutionEngine._executeAction(action);
+      }
+    }
+  }
+
+  // ─── Cleanup ──────────────────────────────────────────────
+
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+
+    // 1. Stop evolution engine (includes MetricsCollector timer)
+    if (this.evolutionEngine) {
+      this.evolutionEngine.stop();
+      this.evolutionEngine = null;
+    }
+
+    // 2. Stop real-time validator (MutationObserver)
+    if (this.realTimeValidator) {
+      this.realTimeValidator.stop();
+    }
+
+    // 3. Disable perf panel (RAF)
+    if (this.perfPanel) {
+      this.perfPanel.disable();
+    }
+
+    // 4. Disable global error handler (window events)
+    if (this.globalErrorHandler) {
+      this.globalErrorHandler.disable();
+    }
+
+    // 5. Disable virtual scroller (window resize/scroll events)
+    if (this.virtualScroller) {
+      this.virtualScroller.destroy();
+    }
+
+    // 6. Clean up relationship engine (SVG layer, drag events)
+    if (this.relationshipEngine) {
+      this.relationshipEngine.disable();
+    }
+
+    // 7. Clear all EventBus listeners
+    this.eventBus.clear();
+
+    // 8. Clean up container reference
+    this.container.classList.remove('card-frame');
+    if (this.container.__cardFrame === this) {
+      delete this.container.__cardFrame;
+    }
+
+    // 9. Null out sub-module references
+    // (store/typeRegistry/autoFixer/circuitBreaker/actionLogger kept for degraded access)
+    this.renderer = null;
+    this.layoutEngine = null;
+    this.realTimeValidator = null;
+    this.pluginManager = null;
+    this.globalErrorHandler = null;
+    this.perfPanel = null;
+    this.cardObjectPool = null;
+    this.themeManager = null;
+    this.i18n = null;
+    this.relationshipEngine = null;
+    this.virtualScroller = null;
+    this.eventBus = null;
+  }
+}
+
+export { CardFrame };

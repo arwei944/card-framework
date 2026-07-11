@@ -69,7 +69,7 @@ EvolutionOrchestrator.prototype.evolve = function(request) {
 
 EvolutionOrchestrator.prototype._generateFallbackChanges = function(action, metrics) {
   var projectRoot = this._projectRoot;
-  var srcPath = path.join(projectRoot, 'src', 'card-framework.js');
+  var srcPath = path.join(projectRoot, 'src', 'core', 'CardFrame.js');
   if (!fs.existsSync(srcPath)) return [];
 
   var content = fs.readFileSync(srcPath, 'utf-8');

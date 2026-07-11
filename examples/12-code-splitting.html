@@ -229,8 +229,10 @@
     </div>
   </div>
 
-  <script src="../dist/core.js"></script>
-  <script src="../dist/loader.js"></script>
+  <!-- 注：旧的按需加载模块系统已被 ES Module 构建替代。
+       使用 <script type="module"> + 动态 import() 实现代码分割。
+       详见 dist/card-framework.esm.js -->
+  <script src="../dist/card-framework.js"></script>
   <script>
     const MODULES = [
       { name: 'core', label: '核心模块', desc: 'Store, Utils, EventBus' },

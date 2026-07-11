@@ -1505,4 +1505,131 @@ const formatted = frame.i18n.t('greeting', { name: 'World' });
 
 ---
 
+## 自进化系统 (EvolutionEngine / MetricsCollector / RuleEngine)
+
+CardFrame v1.0 内置自进化系统，可在运行时自动采集性能指标、评估优化规则并执行参数调优。
+
+### EvolutionEngine 类
+
+自进化引擎是框架的核心扩展能力，负责协调指标采集、规则评估和执行优化动作。
+
+#### 构造函数
+
+```javascript
+new EvolutionEngine(frame, options)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `frame` | `CardFrame` | CardFrame 实例 |
+| `options.metricsInterval` | `number` | 性能采集间隔（毫秒，默认 5000） |
+| `options.ruleCheckInterval` | `number` | 规则检查间隔（毫秒，默认 30000） |
+| `options.agentSyncInterval` | `number` | Agent 同步间隔（毫秒，默认 60000） |
+| `options.agentEndpoint` | `string` | Evolution Agent 服务地址（默认 `http://localhost:9100`） |
+| `options.autoEvolve` | `boolean` | 是否自动执行进化（默认 true） |
+
+#### 方法
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `start()` | `void` | 启动自进化引擎，开始采集指标和定时检查规则 |
+| `stop()` | `void` | 停止自进化引擎，清理所有定时器和 WebSocket 连接 |
+| `evolveNow()` | `void` | 立即执行一次进化检查 |
+| `getEvolutionHistory()` | `Array` | 获取进化历史记录（最多 1000 条） |
+| `getMetrics()` | `Object` | 获取当前指标快照 |
+
+#### 使用示例
+
+```javascript
+const frame = new CardFrame(container, { evolution: true, evolutionOptions: { ruleCheckInterval: 60000 } });
+frame.evolutionEngine.start();
+```
+
+### MetricsCollector 类
+
+指标采集器，负责实时采集框架运行指标。
+
+#### 方法
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `start()` | `void` | 启动性能采集（每 5 秒）和架构采集（每 60 分钟） |
+| `stop()` | `void` | 停止所有定时器和交互监听 |
+| `getSnapshot()` | `Object` | 获取当前指标快照 |
+| `_recordInteraction(action, data)` | `void` | 记录用户交互事件 |
+| `_pushSample(category, sample)` | `void` | 向指定类别添加采样数据 |
+| `_avg(samples, field)` | `number` | 计算采样数组指定字段的平均值 |
+| `_last(samples, field)` | `*` | 获取采样数组指定字段的最后一个值 |
+
+#### 指标快照结构
+
+```javascript
+{
+  performance: {
+    renderTime: 0.5,
+    cardCount: 50,
+    poolHitRate: 0.85,
+    cacheHitRate: 0.9
+  },
+  interaction: {
+    cardClicks: 100,
+    cardCreates: 10,
+    cardDeletes: 2,
+    last5: []
+  },
+  architecture: {
+    typeCount: 15,
+    maxInheritanceDepth: 3,
+    listenerCount: 200,
+    pluginCount: 2
+  }
+}
+```
+
+### RuleEngine 类
+
+规则引擎，负责评估指标并返回匹配的优化规则。
+
+#### 方法
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `evaluate(metrics)` | `Array` | 根据指标评估所有规则，返回匹配的优化动作列表 |
+| `addRule(rule)` | `void` | 添加自定义优化规则 |
+| `removeRule(name)` | `void` | 移除指定规则 |
+| `_inCooldown(name)` | `boolean` | 检查规则是否在冷却期内 |
+
+#### 内置规则
+
+| 规则名称 | 触发条件 | 优化动作 |
+|----------|----------|----------|
+| `pool-expansion` | 池命中率 < 0.5 | 增大对象池容量 |
+| `cache-expansion` | 缓存命中率 < 0.5 | 增大布局缓存容量 |
+| `render-batch-optimize` | 渲染耗时 > 100ms | 启用批量渲染优化 |
+| `type-explosion` | 类型数 > 50 | 触发类型合并 |
+| `inheritance-depth` | 继承深度 > 4 | 触发继承扁平化 |
+| `listener-leak` | 监听器数 > 500 | 触发监听器清理 |
+
+#### 使用示例
+
+```javascript
+const ruleEngine = new CardFrame.RuleEngine();
+const metrics = { performance: { poolHitRate: 0.3 }, architecture: { typeCount: 60 } };
+const actions = ruleEngine.evaluate(metrics);
+// => [{ rule: 'pool-expansion', action: 'tune', params: { target: 'cardObjectPool', key: '_maxPerType', value: 200 } },
+//     { rule: 'type-explosion', action: 'warn', params: { message: '类型数超过 50，建议检查' } }]
+```
+
+### CardFrame 上的自进化接口
+
+CardFrame 实例提供了便捷的自进化接口：
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `frame.getEvolutionHistory()` | `Array` | 获取进化历史记录 |
+| `frame.getMetricsSnapshot()` | `Object` | 获取当前指标快照 |
+| `frame.evolveNow()` | `void` | 立即执行一次进化检查 |
+
+---
+
 **上一篇：[快速开始 ←](./getting-started.md)** | **下一篇：[插件开发指南 →](./plugin-development.md)**

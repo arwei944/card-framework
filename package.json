@@ -1,13 +1,22 @@
 {
   "name": "card-framework",
   "version": "1.0.0",
-  "description": "通用卡片前端框架 - 以卡片为核心数据单元和UI载体的框架无关、Agent友好的前端框架",
-  "main": "src/card-framework.js",
+  "description": "通用卡片前端框架 - 以卡片为核心数据单元和UI载体的框架无关、Agent友好的前端框架。零外部依赖，支持模块化按需加载。",
+  "main": "dist/card-framework.cjs.js",
+  "module": "dist/card-framework.esm.js",
+  "browser": "dist/card-framework.js",
   "types": "dist/card-framework.d.ts",
+  "files": [
+    "dist/",
+    "src/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "test": "mocha tests/test.js && mocha tests/plugin-tests.js && mocha tests/evolution-tests.js",
-    "test:coverage": "c8 npm test",
-    "test:perf": "node tests/perf-test.js",
+    "pretest": "npm run build",
+    "test": "mocha \"tests/unit/**/*.test.js\" \"tests/integration/**/*.test.js\"",
+    "test:coverage": "npm run build && c8 --reporter=text --include=\"dist/card-framework.cjs.js\" mocha \"tests/unit/**/*.test.js\" \"tests/integration/**/*.test.js\"",
     "serve": "npx http-server -p 8080",
     "build": "node scripts/build.js",
     "release": "npm test && npm run build",
@@ -20,12 +29,22 @@
     "framework",
     "frontend",
     "agent",
-    "ai"
+    "ai",
+    "card-ui",
+    "canvas",
+    "plugin",
+    "virtual-scroll",
+    "i18n",
+    "web-components",
+    "shadow-dom",
+    "zero-dependency"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "c8": "^9.0.0",
+    "esbuild": "^0.28.1",
+    "jsdom": "^29.1.1",
     "mocha": "^10.0.0"
   }
 }

@@ -1,144 +1,164 @@
-# Task 2: 框架端 — RuleEngine 类
+# Task 2: CardFrame.destroy() — 资源清理方法
 
-**Files:**
-- Modify: `src/card-framework.js`（在 MetricsCollector 类后插入 RuleEngine）
+## 背景
 
-**Interfaces:**
-- Consumes: `eventBus`
-- Produces: `class RuleEngine` 挂到 `CardFrame.RuleEngine`
+CardFrame 类当前没有 `destroy()` 方法，导致无法释放资源（setInterval 定时器、EventBus 监听器、RAF 循环、store.subscribe 回调、Window 级别事件等），造成严重内存泄漏。
 
-## 步骤
+## 任务
 
-### Step 1: 插入代码
+1. 在 CardFrame 类中添加 `destroy()` 方法（在 evolveNow() 之后、类结束前）
+2. 添加 `removeAllByContext(context)` 到 EventBus 类
+3. 修复 ShadowCardElement._cleanup() 真正 removeEventListener
+4. 创建 tests/destroy-tests.js 测试 destroy() 行为
 
-在 MetricsCollector 类的结尾 `}` 后、`class CardFrame {` 之前插入 RuleEngine 类。当前 MetricsCollector 在约第 5677 行结束，CardFrame 在第 5679 行开始。
+## 文件
 
-插入代码：
+- **Modify:** `src/card-framework.js`
+- **Create:** `tests/destroy-tests.js`
+
+## 关键实现点
+
+### destroy() 方法
+
+添加到 CardFrame 类中（evolveNow() 之后）：
 
 ```javascript
+    destroy() {
+      if (this._destroyed) return;
+      this._destroyed = true;
 
-  class RuleEngine {
-    constructor() {
-      this.rules = [
-        {
-          id: 'pool-expansion',
-          category: 'performance',
-          condition: function(m) {
-            return m.performance.poolHitRate < 0.5 && m.performance.currentCardCount > 50;
-          },
-          action: { type: 'param-tune', target: 'cardPool', param: '_maxPerType', value: 200,
-                    reason: '对象池命中率低于50%，扩容到200' }
-        },
-        {
-          id: 'cache-expansion',
-          category: 'performance',
-          condition: function(m) {
-            return m.performance.cacheHitRate < 0.5;
-          },
-          action: { type: 'param-tune', target: 'layoutCache', param: '_maxSize', value: 10000,
-                    reason: '布局缓存命中率低于50%，扩容到10000' }
-        },
-        {
-          id: 'render-batch-optimize',
-          category: 'performance',
-          condition: function(m) {
-            return m.performance.avgRenderTime > 50;
-          },
-          action: { type: 'param-tune', target: 'renderer', param: '_batchThreshold', value: 10,
-                    reason: '平均渲染耗时>50ms，提高批处理阈值到10' }
-        },
-        {
-          id: 'layout-pref',
-          category: 'interaction',
-          condition: function(m) {
-            return m.interaction.topTypes.length > 0 && m.performance.currentCardCount > 20;
-          },
-          action: { type: 'code-evolve', category: 'interaction',
-                    reason: '卡片数量增多，评估布局策略优化' }
-        },
-        {
-          id: 'type-explosion',
-          category: 'architecture',
-          condition: function(m) {
-            return m.architecture.typeCount > 50;
-          },
-          action: { type: 'code-evolve', category: 'architecture',
-                    reason: '卡片类型超过50种，评估类型系统重构' }
-        },
-        {
-          id: 'inheritance-depth',
-          category: 'architecture',
-          condition: function(m) {
-            return m.architecture.maxInheritanceDepth > 4;
-          },
-          action: { type: 'code-evolve', category: 'architecture',
-                    reason: '继承深度超过4层，评估扁平化' }
-        },
-        {
-          id: 'listener-leak',
-          category: 'architecture',
-          condition: function(m) {
-            return m.architecture.listenerCount > 500;
-          },
-          action: { type: 'code-evolve', category: 'architecture',
-                    reason: '事件监听器超过500个，可能存在泄漏' }
-        }
-      ];
-      this._cooldown = {};
+      // 1. 停止进化引擎（含 MetricsCollector 定时器）
+      if (this.evolutionEngine) {
+        this.evolutionEngine.stop();
+        this.evolutionEngine = null;
+      }
+
+      // 2. 停止实时验证器（MutationObserver）
+      if (this.realTimeValidator) {
+        this.realTimeValidator.stop();
+      }
+
+      // 3. 禁用性能面板（RAF）
+      if (this.perfPanel) {
+        this.perfPanel.disable();
+      }
+
+      // 4. 禁用全局错误处理（window 事件）
+      if (this.globalErrorHandler) {
+        this.globalErrorHandler.disable();
+      }
+
+      // 5. 禁用虚拟滚动（window resize/scroll 事件）
+      if (this.virtualScroller) {
+        this.virtualScroller.destroy();
+      }
+
+      // 6. 清理关系引擎（SVG 层、拖拽事件）
+      if (this.relationshipEngine) {
+        this.relationshipEngine.destroy();
+      }
+
+      // 7. 清理全部 eventBus 监听器
+      this.eventBus._listeners.clear();
+
+      // 8. 清理容器引用
+      this.container.classList.remove('card-frame');
+      delete this.container.__cardFrame;
+
+      // 9. 清理所有子模块引用
+      this.store = null;
+      this.renderer = null;
+      this.layoutEngine = null;
+      this.autoFixer = null;
+      this.realTimeValidator = null;
+      this.pluginManager = null;
+      this.circuitBreaker = null;
+      this.actionLogger = null;
+      this.globalErrorHandler = null;
+      this.perfPanel = null;
+      this.cardObjectPool = null;
+      this.themeManager = null;
+      this.i18n = null;
+      this.relationshipEngine = null;
+      this.virtualScroller = null;
+      this.eventBus = null;
+      this.typeRegistry = null;
     }
+```
 
-    evaluate(metrics) {
-      var actions = [];
-      var now = Date.now();
-      for (var i = 0; i < this.rules.length; i++) {
-        var rule = this.rules[i];
-        if (this._inCooldown(rule.id, now)) continue;
-        try {
-          if (rule.condition(metrics)) {
-            actions.push({ action: rule.action, ruleId: rule.id });
-            this._setCooldown(rule.id, now);
+### EventBus.removeAllByContext()
+
+在 EventBus.off() 之后添加：
+
+```javascript
+    removeAllByContext(context) {
+      if (!context) return;
+      var self = this;
+      this._listeners.forEach(function(listeners, eventName) {
+        var toRemove = [];
+        listeners.forEach(function(listener) {
+          if (listener._context === context) {
+            toRemove.push(listener);
           }
-        } catch (e) {
-          eventBus.emit('evolution:rule-error', { ruleId: rule.id, error: e.message });
+        });
+        toRemove.forEach(function(listener) {
+          listeners.delete(listener);
+        });
+        if (listeners.size === 0) {
+          self._listeners.delete(eventName);
         }
+      });
+    }
+```
+
+同时修改 on() 方法记录上下文：
+
+```javascript
+    on(eventName, listener, context) {
+      if (!this._listeners.has(eventName)) {
+        this._listeners.set(eventName, new Set());
       }
-      return actions;
-    }
-
-    _inCooldown(ruleId, now) {
-      var last = this._cooldown[ruleId] || 0;
-      return now - last < 300000;
-    }
-
-    _setCooldown(ruleId, now) {
-      this._cooldown[ruleId] = now;
-    }
-
-    addRule(rule) {
-      this.rules.push(rule);
-    }
-
-    removeRule(ruleId) {
-      var filtered = [];
-      for (var i = 0; i < this.rules.length; i++) {
-        if (this.rules[i].id !== ruleId) {
-          filtered.push(this.rules[i]);
-        }
+      if (context) {
+        listener._context = context;
       }
-      this.rules = filtered;
+      this._listeners.get(eventName).add(listener);
     }
-  }
 ```
 
-### Step 2: 运行测试
-```bash
-cd d:\work\solo work\card-framework; npm test
-```
-Expected: 516 passing, 0 failing
+### ShadowCardElement._cleanup()
 
-### Step 3: 提交
-```bash
-cd d:\work\solo work\card-framework
-git add src/card-framework.js
-git commit -m "feat: add RuleEngine class with 7 built-in evolution rules"
+将 `_cleanup()` 修改为真正 removeEventListener：
+
+```javascript
+    _cleanup() {
+      var self = this;
+      this._listeners.forEach(function(handler, eventType) {
+        self.removeEventListener(eventType, handler);
+      });
+      this._listeners.clear();
+    }
 ```
+
+### destroy-tests.js
+
+复用 evolution-tests.js 的 mock 环境（window/document/HTMLElement/MutationObserver），加载 CardFrame，测试：
+1. destroy() 后 `_destroyed === true`
+2. destroy() 后 `evolutionEngine === null`
+3. destroy() 后所有子模块为 null
+4. destroy() 后 `container.__cardFrame === undefined`
+5. 连续调用 3 次 destroy() 不抛异常
+6. destroy() 后调用 createCard 应正常返回 card
+7. destroy() 后 container 已清理
+8. EventBus.removeAllByContext 移除指定上下文监听器
+9. removeAllByContext 不影响其他上下文
+
+## 约束
+
+- ES5 兼容（var，无箭头函数）
+- 零外部依赖
+- 完成后运行 `npm test` 确认通过
+- 完成后运行 `npm run build` 确认构建成功
+
+## 报告
+
+完成后写入 .superpowers/sdd/task-2-report.md
