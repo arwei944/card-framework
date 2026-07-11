@@ -5,6 +5,7 @@
  */
 
 import { Utils } from '../utils/Utils.js';
+import { Security } from '../security/Security.js';
 
 export class RelationshipEngine {
   constructor(container, store, eventBus) {
@@ -579,10 +580,14 @@ export class RelationshipEngine {
     const sourceCard = this.store.getCard(rel.sourceId);
     const targetCard = this.store.getCard(rel.targetId);
 
+    const typeText = Security.escapeHtml(String(rel.type ?? ''));
+    const sourceText = Security.escapeHtml(String(sourceCard?.props?.title || rel.sourceId));
+    const targetText = Security.escapeHtml(String(targetCard?.props?.title || rel.targetId));
+
     tooltip.innerHTML = `
-      <div><strong>关系类型:</strong> ${rel.type}</div>
-      <div><strong>源:</strong> ${sourceCard?.props?.title || rel.sourceId}</div>
-      <div><strong>目标:</strong> ${targetCard?.props?.title || rel.targetId}</div>
+      <div><strong>关系类型:</strong> ${typeText}</div>
+      <div><strong>源:</strong> ${sourceText}</div>
+      <div><strong>目标:</strong> ${targetText}</div>
       <div style="margin-top: 4px; font-size: 11px; opacity: 0.8;">双击编辑类型 · 右键删除</div>
     `;
 

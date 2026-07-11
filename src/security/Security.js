@@ -125,9 +125,37 @@ export const Security = {
     return tempDiv.innerHTML;
   },
 
+  _safeUrlProtocols: ['http:', 'https:', 'ftp:', 'ftps:', 'mailto:', 'tel:'],
+
+  _safeDataUrlPattern: /^data:image\/(png|jpe?g|gif|webp|svg\+xml|bmp|x-icon);/i,
+
+  sanitizeScriptContent(content) {
+    if (content == null) return '';
+    let str = String(content);
+
+    // Remove complete <script>...</script> blocks (cross-line, case-insensitive)
+    str = str.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+
+    // Remove any remaining/unclosed <script ...> opening tags (and trailing content)
+    str = str.replace(/<script\b[^>]*>[\s\S]*$/gi, '');
+    str = str.replace(/<\/script\s*>/gi, '');
+
+    // Remove inline event handlers: onclick="...", onerror='...', onload=foo
+    str = str.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '');
+    str = str.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '');
+    str = str.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
+
+    // Remove javascript: / vbscript: protocols
+    str = str.replace(/javascript\s*:/gi, '');
+    str = str.replace(/vbscript\s*:/gi, '');
+
+    return str;
+  },
+
   sanitizeUrl(url) {
     if (url == null) return '';
-    const str = String(url).trim();
+    // Strip null bytes / control chars that can bypass protocol checks
+    const str = String(url).replace(/[\u0000-\u001F\u007F]/g, '').trim();
 
     if (str === '') return '';
 
@@ -140,24 +168,32 @@ export const Security = {
 
   isSafeUrl(url) {
     if (url == null) return false;
-    const str = String(url).trim();
+    const str = String(url).replace(/[\u0000-\u001F\u007F]/g, '').trim();
 
     if (str === '') return false;
 
+    // Protocol-relative URLs (//evil.com) are NOT automatically safe
+    if (str.startsWith('//')) {
+      return false;
+    }
+
+    // Fragment / absolute-path / relative-path references are safe
     if (str.startsWith('#') || str.startsWith('/') || str.startsWith('./') || str.startsWith('../')) {
       return true;
     }
 
+    // data: URLs — only allow whitelisted image mime types
+    if (/^data:/i.test(str)) {
+      return this._safeDataUrlPattern.test(str) && !/[<>]|script/i.test(str);
+    }
+
     try {
-      const parsed = new URL(str, window.location.origin);
+      const base = (typeof window !== 'undefined' && window.location && window.location.origin)
+        ? window.location.origin
+        : 'http://localhost';
+      const parsed = new URL(str, base);
       const protocol = parsed.protocol.toLowerCase();
-
-      const safeProtocols = ['http:', 'https:', 'ftp:', 'ftps:', 'mailto:', 'tel:'];
-      if (!safeProtocols.includes(protocol)) {
-        return false;
-      }
-
-      return true;
+      return this._safeUrlProtocols.includes(protocol);
     } catch (e) {
       return false;
     }
@@ -168,9 +204,10 @@ export const Security = {
     let str = String(styleStr);
 
     for (const pattern of this._dangerousStylePatterns) {
-      if (pattern.test(str)) {
-        str = str.replace(pattern, '');
-      }
+      // Reset lastIndex to avoid state leaking across calls on shared /g regexes
+      pattern.lastIndex = 0;
+      str = str.replace(pattern, '');
+      pattern.lastIndex = 0;
     }
 
     str = str.replace(/@import[^;]*;?/gi, (match) => {
@@ -208,7 +245,11 @@ export const Security = {
     return { sanitized, changed, removedProps };
   },
 
-  // Delegate to Utils.escapeAttr to avoid code duplication
+  // Delegate to Utils to avoid code duplication
+  escapeHtml(str) {
+    return Utils.escapeHtml(str);
+  },
+
   escapeAttr(str) {
     return Utils.escapeAttr(str);
   },
@@ -216,22 +257,10 @@ export const Security = {
   checkCSPCompatibility() {
     const issues = [];
 
-    const hasEval = (function() {
-      try {
-        const test = new Function('return 1');
-        return false;
-      } catch (e) {
-        return true;
-      }
-    })();
-
-    if (hasEval) {
-      issues.push({
-        type: 'csp-eval',
-        severity: 'high',
-        message: 'CSP 禁止使用 eval() 和 new Function()'
-      });
-    }
+    // The framework is eval-free, so it is compatible with strict script CSP
+    // (no eval()/new Function() probe is needed — and probing would itself
+    // require new Function(), violating the eval-free guarantee).
+    const notes = ['框架源码不使用 eval()/new Function()，兼容严格 script-src CSP。'];
 
     const testInlineStyle = (function() {
       try {
@@ -254,6 +283,7 @@ export const Security = {
     return {
       compatible: issues.length === 0,
       issues,
+      notes,
       recommendations: [
         '使用 nonce 或 hash 来允许必要的内联样式',
         '避免使用 javascript: 协议的 URL',

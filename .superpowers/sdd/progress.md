@@ -49,16 +49,24 @@
 - **T5.07** 新增 `tests/integration/plugin-phase5.test.js` 共 24 个测试（沙箱资源清理 / 权限拒绝 / 卸载清理 / 优先级 / action / 异常隔离）。
 - `PluginSandbox` 已从 `src/index.js` 导出。
 
+### Phase 6 — 安全增强 ✅（T6.01–T6.07）
+- **T6.01** 重写 `sanitizeUrl`/协议白名单（http/https/ftp/ftps/mailto/tel），剥离 null 字节与控制字符防绕过；`data:` 仅允许白名单图片 MIME 且拒绝含 script/`<>` 的内容；无效 URL try/catch 返回 `''`。
+- **T6.02** 新增 `sanitizeScriptContent`：移除跨行 / 未闭合 `<script>`、内联事件处理器（on*=）、`javascript:`/`vbscript:` 协议。
+- **T6.03** 修复 tooltip XSS：`RelationshipEngine._showRelationshipTooltip` 用 `Security.escapeHtml` 转义 rel.type/卡片标题/ID（新增 `Security.escapeHtml` 委托）。
+- **T6.04** 修复 `sanitizeStyle` 共享 `/g` 正则的 `lastIndex` 残留：每次 replace 前后重置 lastIndex，连续调用结果一致。
+- **T6.05** 修复 `isSafeUrl`：协议相对 URL `//evil.com` 不再被误判为安全；`/`、`./`、`../`、`#` 仍安全。
+- **T6.06** CSP 支持：`options.csp` 经 `CardFrame.applyCSP()` 注入 CSP meta（已存在则不覆盖）；移除 `checkCSPCompatibility` 反直觉的 `new Function` 探测（框架源码彻底无 eval/new Function），返回 `notes`。
+- **T6.07** 新增 `tests/integration/security-phase6.test.js` 共 33 个测试（协议白名单/大小写混淆/null 字节/data: 判定/跨行 script/内联事件/lastIndex 一致性/模板攻击向量/CSP/tooltip XSS）。
+
 ## 尚未完成（后续 Phase）
 
 - Phase 4 其余（T4.10/T4.11/T4.13–T4.17）：剩余 P1/P2 Bug 收尾。
-- Phase 6 — 安全增强（sanitizeUrl 协议白名单细化、tooltip XSS、CSP 支持）。
 - Phase 7 — 其他收尾。
 
 ## 验证命令
 ```
 npm run build     # esbuild → dist/（9 产物）
-npm test          # 136 passing
+npm test          # 169 passing
 npm run test:coverage
 ```
 

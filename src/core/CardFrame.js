@@ -57,6 +57,10 @@ class CardFrame {
     this.container.__cardFrame = this;
     this._options = options;
 
+    if (options.csp) {
+      CardFrame.applyCSP(options.csp);
+    }
+
     // Create EventBus first — all sub-modules depend on it
     this.eventBus = new EventBus();
 
@@ -806,6 +810,22 @@ class CardFrame {
     this.relationshipEngine = null;
     this.virtualScroller = null;
     this.eventBus = null;
+  }
+
+  /**
+   * 添加 Content-Security-Policy meta 标签。若页面已存在 CSP meta 则不覆盖。
+   * @param {string} policy - CSP 策略字符串，例如 "default-src 'self'"
+   * @returns {boolean} 添加成功返回 true；已存在或无 document 返回 false
+   */
+  static applyCSP(policy) {
+    if (typeof document === 'undefined' || !policy) return false;
+    const existing = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    if (existing) return false;
+    const meta = document.createElement('meta');
+    meta.setAttribute('http-equiv', 'Content-Security-Policy');
+    meta.setAttribute('content', String(policy));
+    (document.head || document.documentElement).appendChild(meta);
+    return true;
   }
 }
 
