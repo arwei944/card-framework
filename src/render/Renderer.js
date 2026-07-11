@@ -350,6 +350,11 @@ export class Renderer {
 
   forceFullRender(cards) {
     this._lastCardIds = [];
+    // T7.06 — detach every tracked listener before dropping the nodes so the
+    // handlers (and their closures) are not leaked when the map is cleared.
+    Array.from(this._eventListeners.keys()).forEach(cardId => {
+      this.cleanupCardElement(cardId);
+    });
     this.container.innerHTML = '';
     this._eventListeners.clear();
     this.renderCards(cards);

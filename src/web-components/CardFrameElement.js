@@ -8,7 +8,6 @@ import { TypeRegistry } from '../core/TypeRegistry.js';
 import { defaultCardTypes } from '../core/defaultCardTypes.js';
 import { EventBus } from '../core/EventBus.js';
 import { Renderer } from '../render/Renderer.js';
-import { Utils } from '../utils/Utils.js';
 import { AutoFixer } from '../validation/AutoFixer.js';
 import { RealTimeValidator } from '../validation/RealTimeValidator.js';
 
@@ -35,6 +34,7 @@ export class CardFrameElement extends _HTMLElement {
       this._validator = localValidator;
 
       const frame = {
+        eventBus: localEventBus,
         store: localStore,
         typeRegistry: localTypeRegistry,
         renderer: localRenderer,
@@ -43,7 +43,7 @@ export class CardFrameElement extends _HTMLElement {
       };
       this.__cardFrame = frame;
 
-      this._initFromDOM();
+      this._initPendingCards();
       localValidator.start();
 
       localStore.subscribe(() => {
@@ -54,43 +54,16 @@ export class CardFrameElement extends _HTMLElement {
     }
   }
 
-  _initFromDOM() {
+  /**
+   * T7.01 — resolve the race where a <cf-card> upgrades/connects before its
+   * parent <card-frame>. Any such element parked itself (_waitingForFrame) and
+   * is initialized here now that the frame context exists.
+   */
+  _initPendingCards() {
     const cardEls = this.querySelectorAll('cf-card');
-    const localStore = this._store;
-    const localAutoFixer = this._autoFixer;
     cardEls.forEach(el => {
-      if (!el.dataset.cardId) {
-        const props = {};
-        for (const attr of el.attributes) {
-          if (attr.name.startsWith('data-')) {
-            const key = attr.name.slice(5);
-            props[key] = Utils.parseValue(attr.value);
-          } else if (!['type', 'id', 'class'].includes(attr.name)) {
-            props[attr.name] = Utils.parseValue(attr.value);
-          }
-        }
-
-        if (el.innerHTML.trim()) {
-          props.content = el.innerHTML.trim();
-        }
-
-        const card = {
-          id: el.id || Utils.generateId('card'),
-          type: el.getAttribute('type') || 'text',
-          props,
-          position: { x: 0, y: 0 },
-          status: 'active',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-
-        const validation = localTypeRegistry.validate(card);
-        if (!validation.valid) {
-          localAutoFixer.fixCard(card, validation);
-        }
-
-        localStore.addCard(card);
-        el.dataset.cardId = card.id;
+      if (typeof el._initCard === 'function') {
+        el._initCard();
       }
     });
   }

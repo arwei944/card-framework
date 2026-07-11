@@ -68,14 +68,25 @@
 - **T4.16** 渲染订阅逻辑抽为 `_renderFromStore()`，pause/resume 用 try/finally，渲染抛错也能 resume。
 - **T4.17** `tests/integration/phase4.test.js` 新增 9 个回归测试（list addItem / batch 自定义 id / pause-resume 异常安全 / 版本往返与迁移 / destroy 清理 / 构造函数拆分）。
 
+### Phase 7 — Web Components & 容错加固（T7.01–T7.08）✅
+- **T7.01** `<cf-card>` 竞态：`CardFrameElement._initPendingCards()` 在 frame 连接后主动初始化先行 upgrade 的子卡片；`CardElement._initCard` 清 `_waitingForFrame`。
+- **T7.02** Shadow DOM 穿透：`CardElement._findFrameElement()` 沿 `parentNode` 与 `getRootNode().host` 逐级上溯，跨越 shadow 边界定位 `card-frame`。
+- **T7.03** 多版本共存：`index.js` 的 `customElements.define` 已带 `!get()` 守卫；`CardElement` 支持浏览器零参构造（`_eventBus` 允许 null，运行时从 `frame.eventBus` 取），`frame` 对象补充 `eventBus`。
+- **T7.04** `attributeChangedCallback` 异常安全：拆出 `_applyAttributeChange`，外层 try/catch 复位 `_isUpdating` 并降级为 `FeedbackSystem.error`，不外抛。
+- **T7.05** 停止直接突变 Store：改用 `frame.store.updateCardProps(cardId, { [prop]: value })`。
+- **T7.06** `Renderer.forceFullRender` 先对每个 cardId 调 `cleanupCardElement` 解绑监听器再清空容器，杜绝泄漏。
+- **T7.07** `CircuitBreaker` half-open 并发：新增 `_globalHalfOpenProbe`/`_cardHalfOpenProbe`，half-open 仅放行单一探针；探针成功全闭合、失败立即重开；`reset` 清理探针标志。
+- **T7.08** `tests/integration/web-components-phase7.test.js` 新增 12 个回归测试（竞态/Shadow 穿透/零参构造/异常安全/更新走 API/引用隔离/监听器清理/熔断单探针 global+card）。
+- 附带修复 `CardFrameElement` 原 `_initFromDOM` 中未定义的 `localTypeRegistry`（移除重复解析路径）。
+
 ## 尚未完成（后续 Phase）
 
-- Phase 7 — Web Components 修复（竞态、Shadow DOM 穿透、多版本共存、attributeChangedCallback 异常安全、CardElement 突变 Store、forceFullRender 监听器泄漏、CircuitBreaker half-open 并发）。
+- 全部 8 个 Phase 已完成，待统一 `git push`。
 
 ## 验证命令
 ```
 npm run build     # esbuild → dist/（9 产物）
-npm test          # 178 passing
+npm test          # 190 passing
 npm run test:coverage
 ```
 

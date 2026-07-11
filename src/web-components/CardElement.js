@@ -13,7 +13,7 @@ const _HTMLElement = typeof HTMLElement !== 'undefined' ? HTMLElement : class {}
 export class CardElement extends _HTMLElement {
   constructor(eventBus) {
     super();
-    this._eventBus = eventBus;
+    this._eventBus = eventBus || null;
     this._isMoving = false;
     this._isUpdating = false;
   }
@@ -22,8 +22,29 @@ export class CardElement extends _HTMLElement {
     return ['type', 'title', 'priority', 'data-priority'];
   }
 
+  /**
+   * T7.02 — locate the enclosing card-frame element, piercing Shadow DOM
+   * boundaries (closest() stops at the shadow root, so climb host nodes too).
+   */
+  _findFrameElement() {
+    let node = this.parentNode || (this.getRootNode && this.getRootNode().host) || null;
+    while (node) {
+      if (typeof node.matches === 'function' && node.matches('.card-frame, card-frame')) {
+        return node;
+      }
+      if (node.parentNode) {
+        node = node.parentNode;
+      } else if (node.getRootNode && node.getRootNode().host) {
+        node = node.getRootNode().host;
+      } else {
+        node = null;
+      }
+    }
+    return null;
+  }
+
   _getFrame() {
-    const frameEl = this.closest('.card-frame, card-frame');
+    const frameEl = this._findFrameElement();
     return frameEl ? (frameEl.__cardFrame || null) : null;
   }
 
@@ -41,6 +62,7 @@ export class CardElement extends _HTMLElement {
   _initCard() {
     const frame = this._getFrame();
     if (!frame || this.dataset.cardId) return;
+    this._waitingForFrame = false;
 
     const card = this.extractCardFromElement();
     const validation = frame.typeRegistry.validate(card);
@@ -64,6 +86,17 @@ export class CardElement extends _HTMLElement {
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue || this._isUpdating) return;
 
+    // T7.04 — a throwing callback must never leave the element wedged
+    // (_isUpdating stuck true) or bubble an exception into the DOM engine.
+    try {
+      this._applyAttributeChange(name, oldValue, newValue);
+    } catch (e) {
+      this._isUpdating = false;
+      FeedbackSystem.error(`属性 "${name}" 更新失败`, e && e.message ? e.message : String(e));
+    }
+  }
+
+  _applyAttributeChange(name, oldValue, newValue) {
     const cardId = this.dataset.cardId;
     if (!cardId) return;
 
@@ -73,6 +106,7 @@ export class CardElement extends _HTMLElement {
     const card = frame.store.getCard(cardId);
     if (!card) return;
 
+    const eventBus = frame.eventBus || this._eventBus;
     const propName = name.startsWith('data-') ? name.slice(5) : name;
 
     const typeDef = frame.typeRegistry.get(card.type);
@@ -90,11 +124,9 @@ export class CardElement extends _HTMLElement {
           } else {
             this.removeAttribute(name);
           }
-          this._eventBus.emit(EVENT_TYPES.CARD_VALIDATION_ERROR, {
-            cardId,
-            propName,
-            error: 'type error'
-          });
+          if (eventBus) {
+            eventBus.emit(EVENT_TYPES.CARD_VALIDATION_ERROR, { cardId, propName, error: 'type error' });
+          }
           return;
         }
 
@@ -107,11 +139,9 @@ export class CardElement extends _HTMLElement {
           if (propSchema.defaultValue !== undefined) {
             this.setAttribute(name, String(propSchema.defaultValue));
           }
-          this._eventBus.emit(EVENT_TYPES.CARD_VALIDATION_ERROR, {
-            cardId,
-            propName,
-            error: 'value not allowed'
-          });
+          if (eventBus) {
+            eventBus.emit(EVENT_TYPES.CARD_VALIDATION_ERROR, { cardId, propName, error: 'value not allowed' });
+          }
           return;
         }
       } else {
@@ -123,12 +153,16 @@ export class CardElement extends _HTMLElement {
       }
     }
 
-    card.props[propName] = newValue;
-    frame.store.updateCard(card);
+    // T7.05 — mutate through the Store API instead of writing directly into a
+    // (now deep-cloned) card object that the Store no longer owns.
+    frame.store.updateCardProps(cardId, { [propName]: newValue });
 
     this._isUpdating = true;
-    this.render();
-    this._isUpdating = false;
+    try {
+      this.render();
+    } finally {
+      this._isUpdating = false;
+    }
   }
 
   disconnectedCallback() {

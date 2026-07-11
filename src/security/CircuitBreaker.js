@@ -21,6 +21,11 @@ export class CircuitBreaker {
     this._globalState = 'closed';
     this._lastGlobalOpen = 0;
     this._safeMode = false;
+
+    // T7.07 — allow only a single probe request through while half-open so a
+    // burst of concurrent calls cannot stampede a still-fragile subsystem.
+    this._globalHalfOpenProbe = false;
+    this._cardHalfOpenProbe = new Set();
   }
 
   _emit(eventName, detail) {
@@ -32,22 +37,42 @@ export class CircuitBreaker {
   recordSuccess(cardId = null) {
     if (cardId) {
       const state = this._cardStates.get(cardId);
-      if (state === 'open') {
+      if (state === 'open' || state === 'half-open') {
         this._cardStates.set(cardId, 'closed');
         this._emit(EVENT_TYPES.CIRCUIT_BREAKER_CLOSED, { cardId, level: 'card' });
       }
       this._cardFailures.delete(cardId);
+      this._cardHalfOpenProbe.delete(cardId);
     }
 
-    if (this._globalState === 'open' && Date.now() - this._lastGlobalOpen > this.resetTimeoutMs) {
-      this._globalState = 'half-open';
+    // A successful probe fully closes the global breaker.
+    if (this._globalState === 'half-open') {
+      this._globalState = 'closed';
+      this._safeMode = false;
+      this._globalFailures = [];
+      this._globalHalfOpenProbe = false;
+      this._emit(EVENT_TYPES.CIRCUIT_BREAKER_CLOSED, { level: 'global', recovered: true });
     }
   }
 
   recordFailure(cardId = null) {
     const now = Date.now();
 
+    // A failed probe immediately re-opens the breaker at the relevant level.
+    if (this._globalState === 'half-open') {
+      this._globalState = 'open';
+      this._lastGlobalOpen = now;
+      this._safeMode = true;
+      this._globalHalfOpenProbe = false;
+      this._emit(EVENT_TYPES.CIRCUIT_BREAKER_OPENED, { level: 'global', reopened: true });
+    }
+
     if (cardId) {
+      if (this._cardStates.get(cardId) === 'half-open') {
+        this._cardStates.set(cardId, 'open');
+        this._cardHalfOpenProbe.delete(cardId);
+        this._emit(EVENT_TYPES.CIRCUIT_BREAKER_OPENED, { cardId, level: 'card', reopened: true });
+      }
       let failures = this._cardFailures.get(cardId) || [];
       failures = failures.filter(t => now - t < this.windowMs);
       failures.push(now);
@@ -91,6 +116,9 @@ export class CircuitBreaker {
   canExecute(cardId = null) {
     if (this._safeMode) {
       if (Date.now() - this._lastGlobalOpen > this.resetTimeoutMs) {
+        // T7.07 — only the first caller becomes the probe; others wait.
+        if (this._globalHalfOpenProbe) return false;
+        this._globalHalfOpenProbe = true;
         this._globalState = 'half-open';
         this._safeMode = false;
         this._emit(EVENT_TYPES.CIRCUIT_BREAKER_CLOSED, { level: 'global', recovering: true });
@@ -99,11 +127,21 @@ export class CircuitBreaker {
       return false;
     }
 
+    // Probe already dispatched and not yet resolved — hold everyone else back.
+    if (this._globalState === 'half-open') {
+      return false;
+    }
+
     if (cardId) {
       const state = this._cardStates.get(cardId);
+      if (state === 'half-open') {
+        return false;
+      }
       if (state === 'open') {
         const failures = this._cardFailures.get(cardId) || [];
         if (failures.length > 0 && Date.now() - failures[failures.length - 1] > this.resetTimeoutMs) {
+          if (this._cardHalfOpenProbe.has(cardId)) return false;
+          this._cardHalfOpenProbe.add(cardId);
           this._cardStates.set(cardId, 'half-open');
           return true;
         }
@@ -145,11 +183,14 @@ export class CircuitBreaker {
     if (cardId) {
       this._cardFailures.delete(cardId);
       this._cardStates.delete(cardId);
+      this._cardHalfOpenProbe.delete(cardId);
       this._emit(EVENT_TYPES.CIRCUIT_BREAKER_CLOSED, { cardId, level: 'card', manual: true });
     } else {
       this._globalFailures = [];
       this._globalState = 'closed';
       this._safeMode = false;
+      this._globalHalfOpenProbe = false;
+      this._cardHalfOpenProbe.clear();
       this._emit(EVENT_TYPES.CIRCUIT_BREAKER_CLOSED, { level: 'global', manual: true });
     }
   }
