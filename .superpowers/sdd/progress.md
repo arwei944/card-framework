@@ -58,15 +58,24 @@
 - **T6.06** CSP 支持：`options.csp` 经 `CardFrame.applyCSP()` 注入 CSP meta（已存在则不覆盖）；移除 `checkCSPCompatibility` 反直觉的 `new Function` 探测（框架源码彻底无 eval/new Function），返回 `notes`。
 - **T6.07** 新增 `tests/integration/security-phase6.test.js` 共 33 个测试（协议白名单/大小写混淆/null 字节/data: 判定/跨行 script/内联事件/lastIndex 一致性/模板攻击向量/CSP/tooltip XSS）。
 
+### Phase 4 — 收尾（T4.10–T4.17）✅
+- **T4.10** 拆分 `CardFrame` 构造函数为 `_resolveContainer`/`_initModules`/`_initDefaultTypes`/`_initRenderSubscription`/`_initPlugins`/`_initFromDOMWhenReady`/`_initValidator`，构造函数体 ~22 行。
+- **T4.11** `destroy()` 完整清理：清空对象池、Store（cards/relationships/index/relIndex/notifyTimer/pool）、释放 `CardFrame._globalStore`、清空容器 DOM（`innerHTML=''`）。
+- **T4.12** 版本兼容：新增 `CardFrame.VERSION`（getter '1.0.0'）；`exportData` 输出 `version`；`importData` 经 `_checkDataVersion`/`_migrateData` 校验，major 不兼容且无 `options.migrate` 时抛明确错误，支持迁移函数。
+- **T4.13** renderError 删除按钮（Phase 4 首批已修）。
+- **T4.14** list `addItem` action 改用 `store.updateCardProps(card.id, { items })` 并读取 `card.props.items`。
+- **T4.15** `batchCreateCards` 自定义 id 现会 remove+re-add 重新入库，position/status/style 变更经 `updateCard` 持久化。
+- **T4.16** 渲染订阅逻辑抽为 `_renderFromStore()`，pause/resume 用 try/finally，渲染抛错也能 resume。
+- **T4.17** `tests/integration/phase4.test.js` 新增 9 个回归测试（list addItem / batch 自定义 id / pause-resume 异常安全 / 版本往返与迁移 / destroy 清理 / 构造函数拆分）。
+
 ## 尚未完成（后续 Phase）
 
-- Phase 4 其余（T4.10/T4.11/T4.13–T4.17）：剩余 P1/P2 Bug 收尾。
-- Phase 7 — 其他收尾。
+- Phase 7 — Web Components 修复（竞态、Shadow DOM 穿透、多版本共存、attributeChangedCallback 异常安全、CardElement 突变 Store、forceFullRender 监听器泄漏、CircuitBreaker half-open 并发）。
 
 ## 验证命令
 ```
 npm run build     # esbuild → dist/（9 产物）
-npm test          # 169 passing
+npm test          # 178 passing
 npm run test:coverage
 ```
 

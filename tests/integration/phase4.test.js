@@ -84,4 +84,133 @@ describe('Phase 4 — P0 regression', function() {
       assert.strictEqual(calls, 1);
     });
   });
+
+  describe('T4.14 list addItem action', function() {
+    let frame, container;
+    afterEach(function() { cleanupFrame(frame, container); frame = null; container = null; });
+
+    it('addItem appends to props.items via the store', function() {
+      ({ frame, container } = createFrame());
+      const card = frame.createCard('list', { title: 'L', items: ['a'] });
+      const listType = frame.typeRegistry.get('list');
+      const addItem = listType.actions.find(a => a.name === 'addItem');
+      const origPrompt = global.prompt;
+      global.prompt = () => 'b';
+      try {
+        addItem.handler(frame.getCard(card.id), frame.store);
+      } finally {
+        global.prompt = origPrompt;
+      }
+      assert.deepStrictEqual(frame.getCard(card.id).props.items, ['a', 'b']);
+    });
+  });
+
+  describe('T4.15 batchCreateCards custom id', function() {
+    let frame, container;
+    afterEach(function() { cleanupFrame(frame, container); frame = null; container = null; });
+
+    it('persists custom ids so getCard(customId) works', function() {
+      ({ frame, container } = createFrame());
+      const { success, errors } = frame.batchCreateCards([
+        { id: 'custom-1', type: 'text', props: { title: 'One' } },
+        { id: 'custom-2', type: 'text', props: { title: 'Two' }, position: { x: 5, y: 6 } }
+      ]);
+      assert.strictEqual(errors.length, 0);
+      assert.strictEqual(success.length, 2);
+      assert.ok(frame.getCard('custom-1'));
+      assert.strictEqual(frame.getCard('custom-1').props.title, 'One');
+      const two = frame.getCard('custom-2');
+      assert.ok(two);
+      assert.deepStrictEqual(two.position, { x: 5, y: 6 });
+    });
+  });
+
+  describe('T4.16 pause/resume exception safety', function() {
+    let frame, container;
+    afterEach(function() { cleanupFrame(frame, container); frame = null; container = null; });
+
+    it('validator resumes even if a render throws', function() {
+      ({ frame, container } = createFrame());
+      const v = frame.realTimeValidator;
+      let resumed = false;
+      v.pause = function() {};
+      v.resume = function() { resumed = true; };
+      frame.renderer.renderCards = function() { throw new Error('render boom'); };
+      assert.throws(() => frame._renderFromStore());
+      assert.strictEqual(resumed, true);
+    });
+  });
+
+  describe('T4.12 import/export version compatibility', function() {
+    let frame, container;
+    afterEach(function() { cleanupFrame(frame, container); frame = null; container = null; });
+
+    it('exportData includes the current VERSION', function() {
+      ({ frame, container } = createFrame());
+      const CardFrame = frame.constructor;
+      assert.strictEqual(frame.exportData().version, CardFrame.VERSION);
+    });
+
+    it('export -> import round-trips cards at the same version', function() {
+      ({ frame, container } = createFrame());
+      frame.createCard('text', { title: 'RT' });
+      const data = frame.exportData();
+      const { frame: frame2, container: container2 } = createFrame();
+      try {
+        frame2.importData(data, { mode: 'replace' });
+        assert.strictEqual(frame2.getAllCards().length, 1);
+        assert.strictEqual(frame2.getAllCards()[0].props.title, 'RT');
+      } finally {
+        cleanupFrame(frame2, container2);
+      }
+    });
+
+    it('throws on incompatible major version without a migrate fn', function() {
+      ({ frame, container } = createFrame());
+      assert.throws(() => {
+        frame.importData({ version: '99.0', cards: [] });
+      }, /不兼容/);
+    });
+
+    it('uses options.migrate for incompatible major version', function() {
+      ({ frame, container } = createFrame());
+      const result = frame.importData(
+        { version: '99.0', cards: [{ legacyId: 'x' }] },
+        {
+          migrate: (data) => ({
+            version: '1.0',
+            cards: [{ id: 'migrated', type: 'text', props: { title: 'M' }, position: { x: 0, y: 0 }, status: 'active' }]
+          })
+        }
+      );
+      assert.strictEqual(result.importedCards, 1);
+      assert.ok(frame.getCard('migrated'));
+    });
+  });
+
+  describe('T4.11 destroy() cleanup', function() {
+    it('clears container DOM, listeners and global store reference', function() {
+      const { frame, container } = createFrame();
+      const CardFrame = frame.constructor;
+      const store = frame.store;
+      frame.createCard('text', { title: 'x' });
+      const bus = frame.eventBus;
+      frame.destroy();
+      assert.strictEqual(bus.listenerCount('cardAdded'), 0);
+      assert.strictEqual(container.innerHTML, '');
+      assert.notStrictEqual(CardFrame._globalStore, store);
+      assert.strictEqual(store.cards.size, 0);
+      if (container.parentNode) container.parentNode.removeChild(container);
+    });
+
+    it('constructor body stays small (delegates to _init* helpers)', function() {
+      const { frame, container } = createFrame();
+      assert.strictEqual(typeof frame._initModules, 'function');
+      assert.strictEqual(typeof frame._initDefaultTypes, 'function');
+      assert.strictEqual(typeof frame._initRenderSubscription, 'function');
+      assert.strictEqual(typeof frame._initPlugins, 'function');
+      assert.strictEqual(typeof frame._initValidator, 'function');
+      cleanupFrame(frame, container);
+    });
+  });
 });

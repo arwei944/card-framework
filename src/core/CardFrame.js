@@ -40,14 +40,7 @@ import { EVENT_TYPES, DEFAULT_CONFIG } from '../utils/constants.js';
 
 class CardFrame {
   constructor(container, options = {}) {
-    if (typeof container === 'string') {
-      const el = document.querySelector(container);
-      if (!el) {
-        throw new Error(`找不到容器元素: ${container}`);
-      }
-      container = el;
-    }
-
+    container = CardFrame._resolveContainer(container);
     if (container.__cardFrame) {
       return container.__cardFrame;
     }
@@ -61,10 +54,33 @@ class CardFrame {
       CardFrame.applyCSP(options.csp);
     }
 
+    this._initModules(options);
+    this._initDefaultTypes();
+    this._initRenderSubscription();
+    this._initPlugins(options);
+    this._initFromDOMWhenReady();
+    this._initValidator(options);
+
+    // Backward-compat: static reference to the most recent store (used by defaultCardTypes.js)
+    CardFrame._globalStore = this.store;
+  }
+
+  static _resolveContainer(container) {
+    if (typeof container === 'string') {
+      const el = document.querySelector(container);
+      if (!el) {
+        throw new Error(`找不到容器元素: ${container}`);
+      }
+      return el;
+    }
+    return container;
+  }
+
+  _initModules(options) {
+    const container = this.container;
     // Create EventBus first — all sub-modules depend on it
     this.eventBus = new EventBus();
 
-    // Core subsystems with EventBus injection
     this.store = new Store(this.eventBus);
     this.typeRegistry = new TypeRegistry();
     this.renderer = new Renderer(container, this.typeRegistry, this.store, this.eventBus);
@@ -97,14 +113,22 @@ class CardFrame {
 
     // Wire AutoFixer → RealTimeValidator reference
     this.autoFixer._getValidator = () => this.realTimeValidator;
+  }
 
-    // Register built-in card types
+  _initDefaultTypes() {
     defaultCardTypes.forEach(type => this.typeRegistry.register(type));
+  }
 
-    // Subscribe to store changes — debounced re-render
+  _initRenderSubscription() {
     this.store.subscribe(Utils.debounce(() => {
       if (this._destroyed) return;
-      if (this.realTimeValidator) this.realTimeValidator.pause();
+      this._renderFromStore();
+    }, DEFAULT_CONFIG.DEBOUNCE_RENDER_MS || 16));
+  }
+
+  _renderFromStore() {
+    if (this.realTimeValidator) this.realTimeValidator.pause();
+    try {
       if (this.virtualScroller && this.virtualScroller.isEnabled()) {
         this.virtualScroller.refresh();
       } else if (this.renderer) {
@@ -113,33 +137,32 @@ class CardFrame {
       if (this.layoutEngine && this.layoutEngine.mode === 'canvas') {
         this.layoutEngine.syncPositions();
       }
+    } finally {
       if (this.realTimeValidator) this.realTimeValidator.resume();
-    }, 16));
+    }
+  }
 
-    // TODO: P0 Bug #1 — debounce with hardcoded 16ms should use DEFAULT_CONFIG.DEBOUNCE_RENDER_MS
-    // Will be fixed in Phase 4 (T4.01)
-
+  _initPlugins(options) {
     if (options.virtualScroll) {
       this.virtualScroller.enable();
     }
-
     if (options.plugins) {
       options.plugins.forEach(plugin => this.installPlugin(plugin));
     }
+  }
 
+  _initFromDOMWhenReady() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this._initFromDOM());
     } else {
       this._initFromDOM();
     }
+  }
 
+  _initValidator(options) {
     if (options.autoValidate !== false) {
       this.realTimeValidator.start();
     }
-
-    // Backward-compat: static reference to the most recent store
-    // Used by defaultCardTypes.js — will be removed in Phase 4
-    CardFrame._globalStore = this.store;
   }
 
   _initFromDOM() {
@@ -274,10 +297,19 @@ class CardFrame {
     cards.forEach((cardData, index) => {
       try {
         const card = this.createCard(cardData.type, cardData.props || {});
-        if (cardData.id) card.id = cardData.id;
-        if (cardData.position) card.position = cardData.position;
-        if (cardData.status) card.status = cardData.status;
-        if (cardData.style) card.style = cardData.style;
+        let changed = false;
+        if (cardData.position) { card.position = cardData.position; changed = true; }
+        if (cardData.status) { card.status = cardData.status; changed = true; }
+        if (cardData.style) { card.style = cardData.style; changed = true; }
+
+        if (cardData.id && cardData.id !== card.id) {
+          // Re-key the card in the Store so getCard(customId) works
+          this.store.removeCard(card.id);
+          card.id = cardData.id;
+          this.store.addCard(card);
+        } else if (changed) {
+          this.store.updateCard(card);
+        }
         results.push(card);
       } catch (e) {
         errors.push({ index, error: e.message, cardData });
@@ -530,12 +562,53 @@ class CardFrame {
   // ─── Data Import/Export ───────────────────────────────────
 
   /**
+   * 校验导入数据的版本，必要时迁移。
+   * @private
+   * @param {Object} data - 导入数据
+   * @param {Object} options - 导入选项，可包含 migrate(data, fromMajor, toMajor)
+   * @returns {Object} 校验/迁移后的数据
+   */
+  _checkDataVersion(data, options = {}) {
+    if (!data || typeof data !== 'object') {
+      throw new Error('导入数据无效：期望对象或 JSON 字符串');
+    }
+    const dataVersion = String(data.version || '1.0');
+    const currentVersion = String(CardFrame.VERSION);
+    const dataMajor = parseInt(dataVersion.split('.')[0], 10) || 0;
+    const currentMajor = parseInt(currentVersion.split('.')[0], 10) || 0;
+
+    if (dataMajor === currentMajor) {
+      return data;
+    }
+
+    return this._migrateData(data, dataMajor, currentMajor, options);
+  }
+
+  /**
+   * 迁移不兼容 major 版本的数据。
+   * @private
+   */
+  _migrateData(data, fromMajor, toMajor, options = {}) {
+    const migrate = options.migrate || CardFrame._migrations;
+    if (typeof migrate === 'function') {
+      const migrated = migrate(data, fromMajor, toMajor);
+      if (migrated && typeof migrated === 'object') {
+        return migrated;
+      }
+    }
+    throw new Error(
+      `导入数据版本不兼容：数据 major=${fromMajor}，当前 major=${toMajor}。` +
+      `请提供 options.migrate 迁移函数。`
+    );
+  }
+
+  /**
    * 导出数据（返回对象格式）
    * @returns {Object} 导出的数据对象
    */
   exportData() {
     return {
-      version: '1.0',
+      version: CardFrame.VERSION,
       exportedAt: Date.now(),
       cards: this.store.getAllCards(),
       relationships: this.store.getAllRelationships(),
@@ -573,6 +646,8 @@ class CardFrame {
     if (typeof data === 'string') {
       data = JSON.parse(data);
     }
+
+    data = this._checkDataVersion(data, options);
 
     const { mode = 'merge', clearBeforeImport = false } = options;
 
@@ -790,13 +865,40 @@ class CardFrame {
     // 7. Clear all EventBus listeners
     this.eventBus.clear();
 
-    // 8. Clean up container reference
+    // 8. Clear object pool
+    if (this.cardObjectPool && typeof this.cardObjectPool.clear === 'function') {
+      this.cardObjectPool.clear();
+    }
+
+    // 9. Clear store data/index (drop references so it can be GC'd)
+    if (this.store) {
+      if (this.store._notifyTimer) {
+        clearTimeout(this.store._notifyTimer);
+        this.store._notifyTimer = null;
+      }
+      this.store.listeners.clear();
+      this.store.cards.clear();
+      this.store.relationships.clear();
+      if (this.store._relIndex) this.store._relIndex.clear();
+      if (this.store._index && typeof this.store._index.clear === 'function') {
+        this.store._index.clear();
+      }
+      this.store._pool = null;
+    }
+
+    // 10. Release global store static reference if it points to this instance
+    if (CardFrame._globalStore === this.store) {
+      CardFrame._globalStore = null;
+    }
+
+    // 11. Clean up container: remove rendered DOM + framework marker
     this.container.classList.remove('card-frame');
+    this.container.innerHTML = '';
     if (this.container.__cardFrame === this) {
       delete this.container.__cardFrame;
     }
 
-    // 9. Null out sub-module references
+    // 12. Null out sub-module references
     // (store/typeRegistry/autoFixer/circuitBreaker/actionLogger kept for degraded access)
     this.renderer = null;
     this.layoutEngine = null;
@@ -810,6 +912,14 @@ class CardFrame {
     this.relationshipEngine = null;
     this.virtualScroller = null;
     this.eventBus = null;
+  }
+
+  /**
+   * 框架版本号
+   * @type {string}
+   */
+  static get VERSION() {
+    return '1.0.0';
   }
 
   /**

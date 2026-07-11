@@ -142,9 +142,9 @@ export const defaultCardTypes = [
         handler: (card, store) => {
           const item = prompt('输入新列表项：');
           if (item && store) {
-            const items = Array.isArray(card.items) ? [...card.items] : [];
-            items.push(item);
-            store.updateCard(card.id, { items });
+            const current = (card.props && Array.isArray(card.props.items)) ? card.props.items : [];
+            const items = [...current, item];
+            store.updateCardProps(card.id, { items });
           }
         }
       }
