@@ -274,7 +274,7 @@ export class PluginManager {
     }
 
     (plugin._hookUnregisters || []).forEach(unregister => {
-      try { unregister(); } catch (e) { /* noop */ }
+      try { unregister(); } catch { /* noop */ }
     });
     plugin._hookUnregisters = [];
 

@@ -42,7 +42,7 @@ export function defineShadowCardElement(registry) {
       if (name === 'data-props' && newValue) {
         try {
           this._props = JSON.parse(newValue);
-        } catch (e) {
+        } catch {
           this._props = {};
         }
       }

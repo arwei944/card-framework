@@ -135,12 +135,12 @@ export class EvolutionEngine {
           if (msg.type === 'evolution-result') {
             this._handleEvolutionResult(msg.payload);
           }
-        } catch (e) { /* ignore parse errors */ }
+        } catch { /* ignore parse errors */ }
       };
       this.wsConnection.onclose = () => {
         this.wsConnection = null;
       };
-    } catch (e) {
+    } catch {
       this.wsConnection = null;
     }
   }

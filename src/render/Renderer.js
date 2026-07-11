@@ -45,7 +45,7 @@ export class Renderer {
       listeners.forEach(({ element, event, handler }) => {
         try {
           element.removeEventListener(event, handler);
-        } catch (e) {}
+        } catch {}
       });
       this._eventListeners.delete(cardId);
     }

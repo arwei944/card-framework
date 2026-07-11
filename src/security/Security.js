@@ -244,7 +244,7 @@ export const Security = {
       const parsed = new URL(str, base);
       const protocol = parsed.protocol.toLowerCase();
       return this._safeUrlProtocols.includes(protocol);
-    } catch (e) {
+    } catch {
       return false;
     }
   },
@@ -317,7 +317,7 @@ export const Security = {
         const testEl = document.createElement('div');
         testEl.setAttribute('style', 'color: red');
         return testEl.style.color === 'red';
-      } catch (e) {
+      } catch {
         return false;
       }
     })();

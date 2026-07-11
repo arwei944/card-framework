@@ -4,7 +4,7 @@
  * @module utils/Utils
  */
 
-import { escapeHtml, escapeAttr } from './escape.js';
+import * as escape from './escape.js';
 import { Security } from '../security/Security.js';
 
 export const Utils = {
@@ -14,9 +14,9 @@ export const Utils = {
     return `${prefix}_${timestamp}_${hash}`;
   },
 
-  escapeHtml,
+  escapeHtml: escape.escapeHtml,
 
-  escapeAttr,
+  escapeAttr: escape.escapeAttr,
 
   // Security proxies — delegate to the canonical Security implementation.
   // No circular dependency: Security depends only on escape primitives, not Utils.

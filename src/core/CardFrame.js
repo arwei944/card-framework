@@ -34,6 +34,7 @@ import { VirtualScroller } from '../render/VirtualScroller.js';
 import { EvolutionEngine } from '../evolution/EvolutionEngine.js';
 import { defaultCardTypes } from './defaultCardTypes.js';
 import { checkDataVersion, exportData, importData } from './DataIO.js';
+import { getStats } from './StatsService.js';
 import { Utils } from '../utils/Utils.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
 import { Perf } from '../perf/Perf.js';
@@ -625,26 +626,13 @@ class CardFrame {
    * @returns {Object} 统计对象
    */
   getStats() {
-    return {
-      cards: {
-        total: this.store.getAllCards().length,
-        byType: this._getCardTypeStats()
-      },
-      relationships: {
-        total: this.store.getAllRelationships().length
-      },
-      plugins: {
-        total: this.pluginManager.getAll().length,
-        enabled: this.pluginManager.getAll().filter(p => p.enabled).length
-      },
-      layout: {
-        mode: this.layoutEngine.mode,
-        zoom: this.layoutEngine.zoom
-      },
-      circuitBreaker: this.circuitBreaker.getStats(),
-      autoFixer: this.autoFixer.getStats(),
-      performance: Perf.getStats()
-    };
+    return getStats({
+      store: this.store,
+      pluginManager: this.pluginManager,
+      layoutEngine: this.layoutEngine,
+      circuitBreaker: this.circuitBreaker,
+      autoFixer: this.autoFixer
+    });
   }
 
   getPerfStats() {
@@ -689,14 +677,6 @@ class CardFrame {
   }
 
   // ─── Internal Helpers ─────────────────────────────────────
-
-  _getCardTypeStats() {
-    const stats = {};
-    this.store.getAllCards().forEach(card => {
-      stats[card.type] = (stats[card.type] || 0) + 1;
-    });
-    return stats;
-  }
 
   toJSON() {
     return this.store.toJSON();
