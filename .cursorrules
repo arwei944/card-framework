@@ -1,0 +1,60 @@
+# CardFrame Cursor 规则
+
+## 项目约束
+
+本项目使用 CardFrame 框架，**不是** React/Vue/Angular/Tailwind 项目。
+
+## 硬规则
+
+1. **使用 `<cf-card>` 而非 `<div>`**：所有 UI 通过卡片组件渲染
+2. **禁止原子 CSS**：容器内不允许 Tailwind/Bootstrap/Bulma class（`flex`/`p-4`/`btn` 等）
+3. **禁止直接 DOM 操作**：用 `frame.createCard()` / `frame.updateCard()` 而非 `appendChild` / `innerHTML`
+4. **禁止访问 Store 私有字段**：用 `frame.getAllCards()` 而非 `frame.store._cards`
+
+## 卡片类型
+
+| 类型 | 说明 | 关键 props |
+|------|------|-----------|
+| `text` | 文本卡片 | `title`, `content` |
+| `task` | 任务卡片 | `title`, `status`, `priority`, `dueDate` |
+| `image` | 图片卡片 | `src`, `alt`, `caption` |
+| `list` | 清单卡片 | `title`, `items` |
+| `progress` | 进度卡片 | `value`, `max`, `unit` |
+
+## 代码模板
+
+### 声明式
+```html
+<card-frame id="app">
+  <cf-card type="text" data-title="标题" data-content="内容"></cf-card>
+</card-frame>
+<script type="module" src="./dist/card-framework.esm.js"></script>
+```
+
+### JS API
+```javascript
+import CardFrame from './dist/card-framework.esm.js';
+const frame = new CardFrame('#app');
+frame.createCard('text', { title: '标题', content: '内容' });
+```
+
+## 错误对照
+
+| ❌ 错误 | ✅ 正确 |
+|--------|--------|
+| `<div class="card">` | `<cf-card type="text">` |
+| `<div class="flex p-4">` | `<cf-card type="text" data-title="...">` |
+| `container.appendChild(div)` | `frame.createCard('text', {...})` |
+| `frame.store._cards` | `frame.getAllCards()` |
+
+## 验证
+
+- 运行时：框架自动检测逃逸用法并报警
+- 构建时：`npm run guardrail` 扫描源文件
+- 看到 `[CardFrame Guardrail]` 警告时立即修复
+
+## 参考文档
+
+- [AGENTS.md](AGENTS.md) — 完整 Agent 指令
+- [docs/api-reference.md](docs/api-reference.md) — API 手册
+- [docs/agent-guide.md](docs/agent-guide.md) — Agent 操作指南

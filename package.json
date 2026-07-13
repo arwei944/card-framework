@@ -1,6 +1,6 @@
 {
   "name": "card-framework",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "通用卡片前端框架 - 以卡片为核心数据单元和UI载体的框架无关、Agent友好的前端框架。零外部依赖，支持模块化按需加载。",
   "main": "dist/card-framework.cjs.js",
   "module": "dist/card-framework.esm.js",
@@ -22,7 +22,10 @@
     "lint": "eslint src scripts",
     "serve": "npx http-server -p 8080",
     "build": "node scripts/build.js",
-    "release": "npm test && npm run build",
+    "benchmark": "node scripts/benchmark.js",
+    "guardrail": "node scripts/guardrail-check.js",
+    "ci": "npm run lint && npm run guardrail && npm test && npm run build",
+    "release": "npm run ci",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version"

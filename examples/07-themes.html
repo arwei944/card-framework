@@ -115,7 +115,7 @@
 
     function setTheme(theme) {
       if (frame.themeManager) {
-        frame.themeManager.setTheme(theme);
+        frame.themeManager.applyTheme(theme);
       }
     }
 
@@ -154,7 +154,7 @@
       }
 
       if (frame.themeManager) {
-        frame.themeManager.setTheme('ocean');
+        frame.themeManager.applyTheme('ocean');
         document.getElementById('themeSource').textContent = 'custom';
       }
     }

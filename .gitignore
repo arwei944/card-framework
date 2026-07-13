@@ -6,3 +6,7 @@ dist/
 *.log
 
 evolution-agent/src/snapshots/
+
+# Tool / scratch directories
+.workbuddy/
+programming-agent/

@@ -168,25 +168,23 @@ npm install card-framework
 import CardFrame from 'card-framework';
 
 const frame = new CardFrame('#app', {
-  layout: 'flow',
+  layoutMode: 'stream',
   theme: 'light'
 });
 ```
 
-### 模块化按需加载
+### 模块化引入（ESM）
 
 ```html
-<script src="dist/loader.js"></script>
-<script>
-  CardFrame.load('core')
-    .then(() => CardFrame.load('render'))
-    .then(() => CardFrame.load('extras'))
-    .then(() => {
-      const framework = new CardFrame('#app');
-      framework.render();
-    });
+<script type="module">
+  import CardFrame from './dist/card-framework.esm.js';
+
+  const frame = new CardFrame('#app');
+  frame.createCard('text', { title: 'Hello' });
 </script>
 ```
+
+> ⚠️ 早期文档中提到的 `CardFrame.load()` / `CardFrame.preload()` / `CardFrame.isModuleLoaded()` 模块加载器 API **从未在源码中实现**，v1.1.0 已从类型定义中移除。请使用上述 ESM `import` 或 IIFE `<script>` 直引方式。
 
 ---
 
@@ -241,7 +239,7 @@ v1.0.0 完全向后兼容 v0.3.0，无需修改现有代码。
 
 ## 🧪 测试覆盖
 
-- **单元测试：** 231 个 ✅ 全部通过
+- **单元测试：** 201 个 ✅ 全部通过
 - **测试覆盖率：** > 85%
 - **浏览器兼容性测试：** Chrome / Firefox / Safari / Edge
 - **性能基准测试：** 自动化性能测试

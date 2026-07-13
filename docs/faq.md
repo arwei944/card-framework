@@ -38,7 +38,7 @@ CardFrame 是一个以卡片为核心数据单元和 UI 载体的框架无关、
 
 ```typescript
 import CardFrame from 'card-framework';
-const frame = new CardFrame('#app', { layout: 'flow' });
+const frame = new CardFrame('#app', { layoutMode: 'stream' });
 ```
 
 ### Q5: 框架的体积有多大？会影响页面加载速度吗？
@@ -60,10 +60,10 @@ const frame = new CardFrame('#app', { layout: 'flow' });
 
 ```javascript
 // 切换到暗色主题
-frame.themeManager.setTheme('dark');
+frame.themeManager.applyTheme('dark');
 
 // 切换回亮色主题
-frame.themeManager.setTheme('light');
+frame.themeManager.applyTheme('light');
 
 // 设置主题切换动画时长（秒）
 frame.themeManager.setAnimationDuration(0.5);

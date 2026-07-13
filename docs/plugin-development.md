@@ -15,6 +15,11 @@
   - [注册钩子](#注册钩子)
   - [扩展 API](#扩展-api)
 - [插件依赖管理](#插件依赖管理)
+- [插件沙箱与权限](#插件沙箱与权限)
+  - [权限声明](#权限声明)
+  - [沙箱 API 表面](#沙箱-api-表面)
+  - [资源追踪与自动清理](#资源追踪与自动清理)
+  - [限流](#限流)
 - [插件示例](#插件示例)
   - [示例一：便签插件](#示例一便签插件)
   - [示例二：思维导图插件](#示例二思维导图插件)
@@ -499,6 +504,107 @@ frame.installPlugin(dependentPlugin);
 - 未安装的依赖会导致安装失败并抛出错误
 - 卸载插件时，会检查是否有其他插件依赖它
 - 有依赖的插件无法直接卸载，需要先卸载依赖它的插件
+
+---
+
+## 插件沙箱与权限
+
+CardFrame 的插件系统**不是无限制的**：每个插件在 `install` 时都会被包装进一个独立的 `PluginSandbox` 实例，按声明的权限裁剪可见的 API 表面，并自动追踪插件创建的所有资源（定时器、事件监听、卡片类型、主题），在卸载时统一清理。
+
+> **设计目标**：插件崩溃或泄漏不应影响框架主体；插件间的副作用应可隔离。
+
+### 权限声明
+
+插件通过 `permissions` 字段声明所需权限。未声明的权限对应的 API 在沙箱上下文中**不可见**（访问会得到 `undefined`）。
+
+| 权限 | 说明 | 启用的 API |
+|------|------|------------|
+| `store:read` | 读取卡片数据 | `store.getCard` / `getAllCards` / `getCardsByType` / `getRelationship` / `getAllRelationships` |
+| `store:write` | 写入卡片数据 | `storeWrite.addCard` / `updateCard` / `removeCard`（受 `rateLimit` 限制） |
+| `events:subscribe` | 订阅事件 | `eventBus.on` / `off` |
+| `events:emit` | 触发事件 | `eventBus.emit` |
+| `types:register` | 注册卡片类型 | `typeRegistry.register` / `get`（注册的类型会被沙箱追踪，卸载时自动移除） |
+| `theme:read` | 读取主题 | `theme.getCurrentTheme` |
+| `theme:write` | 注册主题 | `theme.registerTheme`（注册的主题会被沙箱追踪，卸载时自动移除） |
+| `i18n:read` | 读取国际化 | `i18n.t` / `getLocale` |
+| `utils:read` | 使用工具函数 | `utils.generateId` / `escapeHtml` / `deepClone` |
+
+```javascript
+const myPlugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+  permissions: ['store:read', 'store:write', 'events:subscribe', 'types:register'],
+
+  install(frame) {
+    // 这里的 frame 是沙箱包装后的受限上下文
+    // 没有声明的权限对应的 API 为 undefined
+    const card = frame.storeWrite.addCard({
+      type: 'note',
+      props: { title: '便签' }
+    });
+
+    // 注册类型（沙箱会追踪）
+    frame.typeRegistry.register({
+      type: 'note',
+      label: '便签'
+      // ...
+    });
+
+    return {};
+  }
+};
+```
+
+### 沙箱 API 表面
+
+沙箱 `createContext()` 返回的对象提供以下字段（按权限开关）：
+
+| 字段 | 权限要求 | 内容 |
+|------|----------|------|
+| `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` | 无 | 沙箱跟踪的定时器（卸载时自动清理） |
+| `addEventListener` | 无 | 沙箱跟踪的 DOM 监听器（卸载时自动清理） |
+| `store` | `store:read` | 只读卡片 API |
+| `storeWrite` | `store:write` | 写卡片 API（受 rateLimit 限流） |
+| `eventBus` | `events:subscribe`（`emit` 需 `events:emit`） | 事件订阅/触发 |
+| `typeRegistry` | `types:register` | 类型注册 |
+| `theme` | `theme:read`（`registerTheme` 需 `theme:write`） | 主题读取/注册 |
+| `i18n` | `i18n:read` | 翻译函数 |
+| `feedback` | 无 | `info` / `warn` / `error` |
+| `utils` | `utils:read` | 工具函数 |
+
+> 沙箱不直接暴露 `frame` 主对象，也不暴露 `frame.layoutEngine` / `frame.renderer` 等内部子系统。需要这些能力的插件应通过 hook 或 action 间接访问。
+
+### 资源追踪与自动清理
+
+`PluginSandbox` 内部维护以下追踪集合：
+
+- `_timers` — 所有 `setTimeout` / `setInterval` 句柄
+- `_intervals` — 所有 `setInterval` 句柄（用于精确清理）
+- `_domListeners` — 所有 `addEventListener` 注册的监听器
+- `_busListeners` — 所有 `eventBus.on` 注册的订阅
+- `_registeredTypes` — 所有 `typeRegistry.register` 注册的类型
+- `_registeredThemes` — 所有 `theme.registerTheme` 注册的主题
+
+当调用 `frame.uninstallPlugin('my-plugin')` 时，`PluginManager` 会调用 `sandbox.destroy()`，**自动清理上述所有资源**，无需插件作者手动处理。
+
+```javascript
+// 即使插件忘记清理，沙箱也会兜底
+install(frame) {
+  frame.storeWrite.addCard({ /* ... */ });
+  frame.eventBus.on('someEvent', () => { /* ... */ });
+  setInterval(() => { /* ... */ }, 1000);
+  frame.typeRegistry.register({ /* ... */ });
+
+  return {};
+  // 没有 uninstall 方法也没关系——沙箱会清理所有资源
+}
+```
+
+### 限流
+
+`store:write` 权限下的写操作（`addCard` / `updateCard` / `removeCard`）受沙箱的 `rateLimiter` 限制。默认配置下，单插件在短时间内的写操作超过阈值时会被拒绝并抛出错误，防止单个劣质插件拖垮整个框架。
+
+> 限流策略由 `PluginManager` 在创建沙箱时传入。可通过 `frame.pluginManager.createSandbox(pluginName, permissions, customRateLimiter)` 自定义。
 
 ---
 

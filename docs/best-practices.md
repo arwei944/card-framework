@@ -496,7 +496,7 @@ frame.themeManager.registerTheme('ocean', {
 });
 
 // 应用主题
-frame.themeManager.setTheme('ocean');
+frame.themeManager.applyTheme('ocean');
 ```
 
 ### 3. 保持主题切换的动画一致性
@@ -567,7 +567,7 @@ themes.forEach(theme => {
   const btn = document.createElement('button');
   btn.textContent = theme.label;
   btn.addEventListener('click', () => {
-    frame.themeManager.setTheme(theme.name);
+    frame.themeManager.applyTheme(theme.name);
   });
   themeSwitcher.appendChild(btn);
 });

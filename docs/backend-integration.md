@@ -50,7 +50,7 @@ sync.start();   // 开始监听变更并周期性上报
 ### GET `{endpoint}`
 返回一份**完整快照**，结构与 `frame.exportData()` 一致：
 ```json
-{ "version": "1.0.0", "cards": [...], "relationships": [...], "layoutMode": "free", "metadata": {} }
+{ "version": "1.0.0", "cards": [...], "relationships": [...], "layoutMode": "stream", "metadata": {} }
 ```
 `BackendSync` 收到后执行 `frame.importData(data, { mode: 'replace', clearBeforeImport: true })`。
 

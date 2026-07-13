@@ -39,6 +39,7 @@ import { Utils } from '../utils/Utils.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
 import { Perf } from '../perf/Perf.js';
 import { EVENT_TYPES, DEFAULT_CONFIG, VERSION } from '../utils/constants.js';
+import { Guardrail } from '../guardrail/Guardrail.js';
 
 class CardFrame {
   constructor(container, options = {}) {
@@ -62,6 +63,14 @@ class CardFrame {
     this._initPlugins(options);
     this._initFromDOMWhenReady();
     this._initValidator(options);
+    this._initGuardrail(options);
+  }
+
+  _initGuardrail(options) {
+    if (options.guardrail === false) return;
+    this.guardrail = new Guardrail(this, options.guardrail === true ? {} : options.guardrail);
+    this.guardrail.scan();
+    this.guardrail.observe();
   }
 
   static _resolveContainer(container) {
@@ -102,9 +111,9 @@ class CardFrame {
     // Inject object pool into Store for card pooling
     this.store._pool = this.cardObjectPool;
 
-    // Evolution engine (optional)
-    this.evolutionEngine = options.evolution !== false
-      ? new EvolutionEngine(this, options.evolution || {}, this.eventBus)
+    // Evolution engine (disabled by default — experimental, opt-in via options.evolution)
+    this.evolutionEngine = options.evolution
+      ? new EvolutionEngine(this, options.evolution === true ? {} : options.evolution, this.eventBus)
       : null;
     if (this.evolutionEngine) {
       this.evolutionEngine.start();
@@ -748,6 +757,12 @@ class CardFrame {
     // 2. Stop real-time validator (MutationObserver)
     if (this.realTimeValidator) {
       this.realTimeValidator.stop();
+    }
+
+    // 2b. Stop guardrail (MutationObserver + DOM API hijack)
+    if (this.guardrail) {
+      this.guardrail.destroy();
+      this.guardrail = null;
     }
 
     // 3. Disable perf panel (RAF)

@@ -12,6 +12,13 @@
   - [检测层](#检测层)
   - [修复层](#修复层)
   - [反馈系统](#反馈系统)
+- [自进化 API](#自进化-api)
+  - [指标采集](#指标采集)
+  - [规则引擎](#规则引擎)
+  - [进化历史](#进化历史)
+  - [操作历史与撤销/重做](#操作历史与撤销重做)
+  - [性能面板](#性能面板)
+  - [全局错误处理](#全局错误处理)
 - [AI Agent 最佳实践](#ai-agent-最佳实践)
 - [常见问题与解决方案](#常见问题与解决方案)
 - [调试技巧](#调试技巧)
@@ -376,6 +383,11 @@ frame.relationshipEngine.enable();
 
 CardFrame 为 AI Agent 提供了完善的偏移防护体系，确保即使 Agent 操作失误，系统也能保持稳定。
 
+> **说明**：本章节的"预防层 / 检测层 / 修复层"是**逻辑功能分类**，并非具体的类名。实际由以下模块落地：
+> - **预防**：`Security`（XSS/URL/样式净化）、`PluginSandbox`（权限隔离）、`CircuitBreaker`（错误预防）
+> - **检测**：`RealTimeValidator`（MutationObserver 实时监控）、`GlobalErrorHandler`（全局错误捕获）、`MetricsCollector`（性能指标采集）
+> - **修复**：`AutoFixer`（卡片/同步/关系自动修复）
+
 ### 预防层
 
 在问题发生前进行预防，减少错误发生的概率。
@@ -471,6 +483,159 @@ frame.on(CardFrame.EVENT_TYPES.CARD_AUTO_FIXED, (e) => {
   // Agent 可以了解哪些问题被自动修复了
   console.log('已自动修复:', e.detail.changes);
 });
+```
+
+---
+
+## 硬约束系统（Guardrail）
+
+CardFrame 内置硬约束系统，防止 AI Agent 退回到原生 HTML / Tailwind / 直接 DOM 操作的旧路径。Guardrail 默认启用，通过 `options.guardrail` 配置。
+
+### 检测规则
+
+| 规则 | 严重性 | 说明 |
+|------|--------|------|
+| **R1** | warn | 容器内发现非卡片元素（`<div>`/`<section>` 等），应改用 `<cf-card>` |
+| **R2** | info | 容器内元素使用了 Tailwind/Bootstrap/Bulma 等 CSS 框架 class |
+| **R3** | error | 直接 DOM 操作（`container.appendChild` / `container.innerHTML =`） |
+| **R4** | error | 绕过 Store 私有字段访问（`frame.store._cards` / `frame.store._pool`） |
+
+> 作用范围：仅检测 `<card-frame>` 容器**内部**的元素。页面 header/nav/footer 等容器外部元素不受约束。
+
+### 配置
+
+```javascript
+const frame = new CardFrame('#container', {
+  guardrail: {
+    enabled: true,           // 默认 true；设为 false 等同于 guardrail: false
+    level: 'warn',           // 最低报告级别：'error' | 'warn' | 'info'
+    onViolation: (v) => {    // 违规回调
+      console.log(`${v.rule}: ${v.message}`);
+    },
+    excludedFrameworks: ['tailwind'],  // 跳过指定 CSS 框架检测
+    testMode: false          // true 时不输出 console 但仍记录违规
+  }
+});
+
+// 完全关闭
+const frame2 = new CardFrame('#container', { guardrail: false });
+```
+
+### 构建时检查
+
+在 CI 或本地运行 `npm run guardrail` 扫描项目代码中的逃逸用法：
+
+```bash
+npm run guardrail                    # 扫描 examples/
+npm run guardrail -- src examples    # 扫描指定目录
+```
+
+### Agent 指令文件
+
+框架提供三套提示层指令文件，放在项目根目录后 AI Agent 会自动读取：
+
+| 文件 | 适用 Agent |
+|------|-----------|
+| `AGENTS.md` | 通用 AI Agent |
+| `.cursorrules` | Cursor |
+| `CLAUDE.md` | Claude |
+
+### 统计
+
+```javascript
+const stats = frame.guardrail.getStats();
+// { total, byRule: {R1, R2, R3, R4}, bySeverity: {error, warn, info}, enabled, level }
+```
+
+## 自进化 API
+
+CardFrame 内置浏览器端自进化子系统，由 `MetricsCollector` / `RuleEngine` / `EvolutionEngine` / `ActionLogger` 四个模块协作，Agent 可通过以下 API 介入。
+
+> **注意**：自进化子系统仍属**实验性、未 production-ready**。指标与进化历史默认仅存内存（刷新即丢），可通过 `localStorage` 持久化。生产使用需配合独立的 Evolution Agent 服务（见 `evolution-agent/`）。
+
+### 指标采集
+
+`MetricsCollector` 每 5 秒采集一次性能、交互、架构指标。Agent 可主动获取快照：
+
+```javascript
+// 获取当前指标快照
+const snapshot = frame.getMetricsSnapshot();
+console.log('性能:', snapshot.performance);
+console.log('架构:', snapshot.architecture);
+console.log('交互:', snapshot.interaction);
+```
+
+### 规则引擎
+
+`RuleEngine` 内置 7 条规则，每 30 秒评估一次：
+
+| 规则名 | 触发条件 | 动作类型 |
+|--------|----------|----------|
+| `pool-expansion` | 对象池命中率低 | `param-tune`（浏览器内调参） |
+| `cache-expansion` | 布局缓存命中率低 | `param-tune` |
+| `render-batch-optimize` | 渲染批处理效率低 | `param-tune` |
+| `layout-pref` | 布局偏好检测 | `param-tune` |
+| `type-explosion` | 卡片类型过多 | `code-evolve`（请求外部 Agent） |
+| `inheritance-depth` | 继承层级过深 | `code-evolve` |
+| `listener-leak` | 监听器泄漏 | `code-evolve` |
+
+Agent 可手动触发进化：
+
+```javascript
+// 立即执行一次进化评估（不等定时器）
+frame.evolveNow();
+```
+
+### 进化历史
+
+```javascript
+// 获取进化历史记录
+const history = frame.getEvolutionHistory();
+// [{ timestamp, rule, action, result, ... }, ...]
+```
+
+### 操作历史与撤销/重做
+
+`ActionLogger` 记录所有写操作（`addCard` / `updateCard` / `removeCard` / `addRelationship` / `removeRelationship`），支持回滚：
+
+```javascript
+// 撤销上一步操作
+frame.undo();
+
+// 重做
+frame.redo();
+
+// 回滚到某个历史点
+frame.rollback(steps);
+
+// 查看历史
+const history = frame.getActionHistory();
+
+// 清空历史
+frame.clearActionHistory();
+```
+
+### 性能面板
+
+Agent 可启用 `PerfPanel` 实时观察运行时指标：
+
+```javascript
+frame.enablePerfPanel();
+// 在容器右上角显示 DOM 节点数、渲染耗时、对象池命中率等
+
+frame.disablePerfPanel();
+```
+
+### 全局错误处理
+
+```javascript
+frame.enableGlobalErrorHandler();
+// 所有未捕获异常会被 GlobalErrorHandler 记录，避免单点错误导致框架崩溃
+
+const stats = frame.getGlobalErrorStats();
+console.log('错误统计:', stats);
+
+frame.disableGlobalErrorHandler();
 ```
 
 ---

@@ -175,7 +175,10 @@ describe('Store', function() {
       const rel = store.addRelationship({
         sourceId: 'card_1', targetId: 'card_2', type: 'reference', data: {},
       });
-      assert.strictEqual(store.getRelationship(rel.id), rel);
+      // getRelationship returns a deep clone (immutable semantics, same as getCard)
+      const fetched = store.getRelationship(rel.id);
+      assert.deepEqual(fetched, rel);
+      assert.notStrictEqual(fetched, rel);
     });
 
     it('should remove a relationship', function() {

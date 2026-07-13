@@ -63,14 +63,19 @@ import { MetricsCollector } from './evolution/MetricsCollector.js';
 import { RuleEngine } from './evolution/RuleEngine.js';
 import { EvolutionEngine } from './evolution/EvolutionEngine.js';
 
+// ─── Guardrail ────────────────────────────────────────────
+import { Guardrail } from './guardrail/Guardrail.js';
+
 // ─── Web Components ───────────────────────────────────────
 import { CardElement } from './web-components/CardElement.js';
 import { CardFrameElement } from './web-components/CardFrameElement.js';
 import { defineShadowCardElement } from './web-components/ShadowCardElement.js';
 
 // ─── Static Class References ──────────────────────────────
-// Original L7032-7062: CardFrame.Utils = Utils, etc.
-// These provide access to internal classes for advanced use cases.
+// Provides access to internal classes for advanced use cases.
+// Each CardFrame instance owns its own subsystems (EventBus, Store,
+// TypeRegistry, Renderer, etc.) — there are NO global singleton instances.
+// Use `new CardFrame(container)` to create an instance with its own state.
 
 CardFrame.EventBus = EventBus;
 CardFrame.Utils = Utils;
@@ -102,42 +107,17 @@ CardFrame.LayoutCache = LayoutCache;
 CardFrame.QueryIndex = QueryIndex;
 CardFrame.ShadowCardRegistry = ShadowCardRegistry;
 CardFrame.EvolutionEngine = EvolutionEngine;
+CardFrame.Guardrail = Guardrail;
 CardFrame.EVENT_TYPES = EVENT_TYPES;
 CardFrame.DEFAULT_CONFIG = DEFAULT_CONFIG;
 CardFrame.CARD_STATUS = CARD_STATUS;
 CardFrame.RELATIONSHIP_TYPES = RELATIONSHIP_TYPES;
 
-// ─── Global Singleton Instances ───────────────────────────
-// Original L7064-7077: Pre-created instances for static access.
-// These provide a default store/typeRegistry/renderer for use
-// without creating a full CardFrame instance.
-// NOTE: These will be eliminated in Phase 4 (T4.06) — each CardFrame
-// instance should own its own subsystems with no shared global state.
-
-const _globalEventBus = new EventBus();
-const globalStore = new Store(_globalEventBus);
-const globalTypeRegistry = new TypeRegistry();
-const _container = typeof document !== 'undefined' ? document.body : null;
-const globalRenderer = new Renderer(_container, globalTypeRegistry, globalStore, _globalEventBus);
-const globalAutoFixer = new AutoFixer(globalTypeRegistry, globalStore, _container, _globalEventBus);
-const globalValidator = new RealTimeValidator(_container, globalTypeRegistry, globalStore, globalAutoFixer, _globalEventBus);
-
-defaultCardTypes.forEach(type => globalTypeRegistry.register(type));
-
-CardFrame.store = globalStore;
-CardFrame.typeRegistry = globalTypeRegistry;
-CardFrame.renderer = globalRenderer;
-CardFrame.autoFixer = globalAutoFixer;
-CardFrame.realTimeValidator = globalValidator;
-
-// ─── Shadow Card Registry ─────────────────────────────────
-// Original L7082-7084
-const _globalShadowCardRegistry = new ShadowCardRegistry();
-CardFrame.shadowCardRegistry = _globalShadowCardRegistry;
-CardFrame.defineShadowCard = () => defineShadowCardElement(_globalShadowCardRegistry);
+// ─── Shadow Card Registry (per-instance, created by CardFrame) ──
+// CardFrame owns its own ShadowCardRegistry; no global singleton.
+CardFrame.defineShadowCard = () => defineShadowCardElement();
 
 // ─── Custom Element Registration ──────────────────────────
-// Original L7087-7090
 if (typeof customElements !== 'undefined') {
   if (!customElements.get('card-frame')) {
     customElements.define('card-frame', CardFrameElement);
@@ -181,6 +161,7 @@ export {
   RuleEngine,
   ShadowCardRegistry,
   Security,
+  Guardrail,
   Perf,
   Utils,
   FeedbackSystem,

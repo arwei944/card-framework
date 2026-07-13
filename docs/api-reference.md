@@ -13,6 +13,9 @@
   - [实例方法 - 插件管理](#实例方法---插件管理)
   - [实例方法 - 验证与修复](#实例方法---验证与修复)
   - [实例方法 - 统计与性能](#实例方法---统计与性能)
+  - [实例方法 - 操作历史与撤销/重做](#实例方法---操作历史与撤销重做)
+  - [实例方法 - 自进化](#实例方法---自进化)
+  - [实例方法 - 性能与错误](#实例方法---性能与错误)
   - [静态方法](#静态方法)
   - [静态属性](#静态属性)
 - [Store 类](#store-类)
@@ -23,6 +26,7 @@
 - [AutoFixer 类](#autofixer-类)
 - [RealTimeValidator 类](#realtimevalidator-类)
 - [PluginManager 类](#pluginmanager-类)
+- [PluginSandbox 类](#pluginsandbox-类)
 - [ThemeManager 类](#thememanager-类)
 - [I18nManager 类](#i18nmanager-类)
 - [RelationshipEngine 类](#relationshipengine-类)
@@ -32,6 +36,8 @@
 - [FeedbackSystem 模块](#feedbacksystem-模块)
 - [Utils 工具函数](#utils-工具函数)
 - [VirtualScroller 类](#virtualscroller-类)
+- [进化子系统](#进化子系统)
+- [Guardrail 硬约束系统](#guardrail-硬约束系统)
 - [声明式 HTML 属性参考](#声明式-html-属性参考)
 
 ---
@@ -64,6 +70,7 @@ const frame = CardFrame.from('#container');
 | `autoValidate` | `boolean` | `true` | 是否自动启动实时验证 |
 | `circuitBreaker` | `object` | `{}` | 熔断机制配置 |
 | `plugins` | `array` | `[]` | 初始安装的插件列表 |
+| `guardrail` | `false \| object` | `{}` | 硬约束配置。`false` 关闭；对象配置详见 [Guardrail](#guardrail-硬约束系统) |
 
 **circuitBreaker 配置项：**
 
@@ -673,6 +680,155 @@ frame.disableVirtualScroll();
 const enabled = frame.isVirtualScrollEnabled();
 ```
 
+### 实例方法 - 操作历史与撤销/重做
+
+> 由 `ActionLogger` 提供实现。记录 `addCard` / `updateCard` / `removeCard` / `addRelationship` / `removeRelationship` 等写操作。
+
+#### undo()
+
+撤销上一步操作。
+
+```javascript
+frame.undo();
+```
+
+**返回值：** `boolean` - 是否撤销成功
+
+---
+
+#### redo()
+
+重做上一步被撤销的操作。
+
+```javascript
+frame.redo();
+```
+
+**返回值：** `boolean` - 是否重做成功
+
+---
+
+#### rollback(steps)
+
+回滚指定步数的操作。
+
+```javascript
+frame.rollback(3); // 回滚 3 步
+```
+
+**参数：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `steps` | `number` | `1` | 回滚步数 |
+
+---
+
+#### getActionHistory()
+
+获取操作历史记录。
+
+```javascript
+const history = frame.getActionHistory();
+```
+
+**返回值：** `array` - 操作历史数组
+
+---
+
+#### clearActionHistory()
+
+清空操作历史。
+
+```javascript
+frame.clearActionHistory();
+```
+
+### 实例方法 - 自进化
+
+> 由 `EvolutionEngine` / `MetricsCollector` / `RuleEngine` 提供。实验性功能。
+
+#### getEvolutionHistory()
+
+获取进化历史记录。
+
+```javascript
+const history = frame.getEvolutionHistory();
+```
+
+**返回值：** `array` - 进化历史数组
+
+---
+
+#### getMetricsSnapshot()
+
+获取当前指标快照。
+
+```javascript
+const snapshot = frame.getMetricsSnapshot();
+// { performance, architecture, interaction, timestamp }
+```
+
+---
+
+#### evolveNow()
+
+立即触发一次进化评估（不等定时器）。
+
+```javascript
+frame.evolveNow();
+```
+
+### 实例方法 - 性能与错误
+
+#### enablePerfPanel()
+
+启用性能面板（在容器右上角显示实时指标）。
+
+```javascript
+frame.enablePerfPanel();
+```
+
+---
+
+#### disablePerfPanel()
+
+禁用性能面板。
+
+```javascript
+frame.disablePerfPanel();
+```
+
+---
+
+#### enableGlobalErrorHandler()
+
+启用全局错误处理（捕获所有未捕获异常）。
+
+```javascript
+frame.enableGlobalErrorHandler();
+```
+
+---
+
+#### disableGlobalErrorHandler()
+
+禁用全局错误处理。
+
+```javascript
+frame.disableGlobalErrorHandler();
+```
+
+---
+
+#### getGlobalErrorStats()
+
+获取全局错误统计。
+
+```javascript
+const stats = frame.getGlobalErrorStats();
+```
+
 ### 静态方法
 
 #### CardFrame.from(selector)
@@ -712,24 +868,40 @@ const perf = CardFrame.getPerfStats();
 | `CardFrame.TypeRegistry` | `class` | TypeRegistry 类 |
 | `CardFrame.Renderer` | `class` | Renderer 类 |
 | `CardFrame.LayoutEngine` | `class` | LayoutEngine 类 |
-| `CardFrame.EventBus` | `object` | 全局事件总线实例 |
+| `CardFrame.EventBus` | `class` | EventBus 类 |
 | `CardFrame.AutoFixer` | `class` | AutoFixer 类 |
 | `CardFrame.RealTimeValidator` | `class` | RealTimeValidator 类 |
 | `CardFrame.FeedbackSystem` | `object` | 反馈系统模块 |
 | `CardFrame.EVENT_TYPES` | `object` | 事件类型常量 |
+| `CardFrame.DEFAULT_CONFIG` | `object` | 默认配置常量 |
+| `CardFrame.CARD_STATUS` | `object` | 卡片状态常量 |
+| `CardFrame.RELATIONSHIP_TYPES` | `object` | 关系类型常量 |
 | `CardFrame.PluginManager` | `class` | PluginManager 类 |
+| `CardFrame.PluginSandbox` | `class` | PluginSandbox 类（插件沙箱） |
 | `CardFrame.CircuitBreaker` | `class` | CircuitBreaker 类 |
 | `CardFrame.ThemeManager` | `class` | ThemeManager 类 |
 | `CardFrame.I18nManager` | `class` | I18nManager 类 |
 | `CardFrame.RelationshipEngine` | `class` | RelationshipEngine 类 |
 | `CardFrame.VirtualScroller` | `class` | VirtualScroller 类 |
+| `CardFrame.BackendSync` | `class` | BackendSync 类（后端同步） |
+| `CardFrame.Monitor` | `object` | Monitor 单例（监控上报） |
 | `CardFrame.Security` | `object` | 安全模块 |
 | `CardFrame.Perf` | `object` | 性能模块 |
-| `CardFrame.store` | `object` | 全局 Store 实例 |
-| `CardFrame.typeRegistry` | `object` | 全局 TypeRegistry 实例 |
-| `CardFrame.renderer` | `object` | 全局 Renderer 实例 |
-| `CardFrame.autoFixer` | `object` | 全局 AutoFixer 实例 |
-| `CardFrame.realTimeValidator` | `object` | 全局 RealTimeValidator 实例 |
+| `CardFrame.CardObjectPool` | `class` | CardObjectPool 类（对象池） |
+| `CardFrame.LayoutCache` | `class` | LayoutCache 类（布局缓存） |
+| `CardFrame.QueryIndex` | `class` | QueryIndex 类（查询索引） |
+| `CardFrame.ActionLogger` | `class` | ActionLogger 类（操作历史） |
+| `CardFrame.MetricsCollector` | `class` | MetricsCollector 类（指标采集） |
+| `CardFrame.RuleEngine` | `class` | RuleEngine 类（规则引擎） |
+| `CardFrame.EvolutionEngine` | `class` | EvolutionEngine 类（进化引擎） |
+| `CardFrame.PerfPanel` | `class` | PerfPanel 类（性能面板） |
+| `CardFrame.GlobalErrorHandler` | `class` | GlobalErrorHandler 类（全局错误处理） |
+| `CardFrame.ShadowCardRegistry` | `class` | ShadowCardRegistry 类（影子卡片注册） |
+| `CardFrame.CardElement` | `class` | `<cf-card>` 自定义元素类 |
+| `CardFrame.CardFrameElement` | `class` | `<card-frame>` 自定义元素类 |
+| `CardFrame.VERSION` | `string` | 框架版本号（getter，如 `'1.1.0'`） |
+
+> ✅ **v1.1.0 起**：每个 `CardFrame` 实例完全拥有自己的子系统（`store` / `typeRegistry` / `renderer` / `autoFixer` / `realTimeValidator` / `shadowCardRegistry`），通过实例属性访问（如 `frame.store`）。框架不再创建任何全局单例，多实例之间互不影响。
 
 ---
 
@@ -1089,6 +1261,95 @@ CardFrame.EVENT_TYPES = {
 #### triggerHook(hookName, data)
 触发钩子。
 
+#### hasAction(actionName)
+检查动作是否已注册。
+
+#### executeAction(actionName, card, event)
+执行卡片动作。
+
+#### registerPermissions(pluginName, permissions)
+为插件注册权限。
+
+#### hasPermission(pluginName, permission)
+检查插件是否具有指定权限。
+
+#### checkRateLimit(pluginName)
+检查插件是否超过速率限制。
+
+#### createSandbox(pluginName, permissions, rateLimiter)
+为插件创建沙箱实例。
+
+**返回值：** `PluginSandbox` - 插件沙箱实例
+
+#### getSandboxContext(pluginName)
+获取插件的沙箱上下文（受限 API 表面）。
+
+---
+
+## PluginSandbox 类
+
+插件沙箱，为每个插件提供独立的受限 API 上下文，自动追踪并清理资源。
+
+> 详见 [插件开发指南 - 插件沙箱与权限](./plugin-development.md#插件沙箱与权限)。
+
+### 方法
+
+#### can(permission)
+检查沙箱是否具有指定权限。
+
+```javascript
+const sandbox = frame.pluginManager.getSandboxContext('my-plugin');
+if (sandbox && sandbox.can('store:write')) {
+  // 执行写操作
+}
+```
+
+**参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `permission` | `string` | 权限名（如 `store:read`、`store:write`、`events:emit`） |
+
+**返回值：** `boolean`
+
+---
+
+#### createContext()
+创建受限的插件 API 上下文。按声明的权限裁剪可见的 API 表面。
+
+**返回值：** `object` - 受限上下文对象，包含以下字段（按权限开关）：
+
+| 字段 | 权限要求 | 内容 |
+|------|----------|------|
+| `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` | 无 | 沙箱跟踪的定时器 |
+| `addEventListener` | 无 | 沙箱跟踪的 DOM 监听器 |
+| `store` | `store:read` | 只读卡片 API |
+| `storeWrite` | `store:write` | 写卡片 API（受 rateLimit 限流） |
+| `eventBus` | `events:subscribe`（`emit` 需 `events:emit`） | 事件订阅/触发 |
+| `typeRegistry` | `types:register` | 类型注册 |
+| `theme` | `theme:read`（`registerTheme` 需 `theme:write`） | 主题读取/注册 |
+| `i18n` | `i18n:read` | 翻译函数 |
+| `feedback` | 无 | `info` / `warn` / `error` |
+| `utils` | `utils:read` | 工具函数 |
+
+---
+
+#### trackType(typeName)
+登记插件注册的卡片类型（卸载时自动移除）。
+
+#### trackTheme(themeName)
+登记插件注册的主题（卸载时自动移除）。
+
+#### destroy()
+销毁沙箱，自动清理所有 tracked 资源：
+- 清除所有 `setTimeout` / `setInterval` 句柄
+- 移除所有 `addEventListener` 注册的 DOM 监听器
+- 移除所有 `eventBus.on` 注册的订阅
+- 注销所有 `typeRegistry.register` 注册的类型
+- 移除所有 `theme.registerTheme` 注册的主题
+
+> 通常由 `PluginManager.uninstall()` 自动调用，无需手动调用。
+
 ---
 
 ## ThemeManager 类
@@ -1135,6 +1396,15 @@ CardFrame.EVENT_TYPES = {
 
 #### toggleTheme()
 切换主题（亮色/暗色）。
+
+#### removeTheme(name)
+移除自定义主题。
+
+#### setAnimationDuration(ms)
+设置主题切换动画时长（毫秒）。
+
+#### getAnimationDuration()
+获取主题切换动画时长。
 
 ---
 
@@ -1184,6 +1454,9 @@ const formatted = frame.i18n.t('greeting', { name: 'World' });
 
 #### setFallbackLocale(locale)
 设置回退语言。
+
+#### isRTL()
+当前语言是否为 RTL（从右到左）。
 
 ---
 
@@ -1406,11 +1679,242 @@ const formatted = frame.i18n.t('greeting', { name: 'World' });
 #### setOverscan(overscan)
 设置超扫描行数。
 
+#### getPoolSize()
+获取 DOM 池大小（复用的元素数量）。
+
+#### getVisibleCardCount()
+获取当前可见卡片数量。
+
 #### refresh()
 刷新可见区域。
 
 #### destroy()
 销毁虚拟滚动器。
+
+---
+
+## 进化子系统
+
+CardFrame 的自进化子系统由四个模块协作：`ActionLogger`（操作历史）、`MetricsCollector`（指标采集）、`RuleEngine`（规则评估）、`EvolutionEngine`（进化执行）。
+
+> **实验性功能**：默认指标与进化历史仅存内存（刷新即丢），生产使用需配合独立的 Evolution Agent 服务。详见 [架构总览 - 自进化子系统](./architecture-overview.md#4-自进化子系统真实状态)。
+
+### ActionLogger 类
+
+操作历史记录器，支持撤销/重做/回滚。
+
+#### record(action)
+记录一个操作。
+
+#### undo(store)
+撤销上一步操作。
+
+#### redo(store)
+重做上一步被撤销的操作。
+
+#### rollback(steps, store)
+回滚指定步数。
+
+#### getHistory()
+获取操作历史数组。
+
+#### clear()
+清空历史。
+
+#### pause() / resume()
+暂停/恢复记录。
+
+#### canUndo() / canRedo()
+是否可撤销/重做。
+
+#### subscribe(listener)
+订阅历史变化。
+
+#### getStatus()
+获取历史状态（当前位置、总数、上限）。
+
+### MetricsCollector 类
+
+性能/交互/架构指标采集器，默认每 5 秒采样一次。
+
+#### start()
+启动周期性采集。
+
+#### stop()
+停止采集。
+
+#### getSnapshot()
+获取当前指标快照。
+
+**返回值：**
+
+```javascript
+{
+  timestamp: 1234567890,
+  performance: {
+    renderCount, avgRenderTime, maxRenderTime,
+    fps, domNodes, memoryUsage
+  },
+  architecture: {
+    cardCount, typeCount, relationshipCount,
+    poolUtilization, cacheHitRate
+  },
+  interaction: {
+    clicks, drags, scrolls, avgResponseTime
+  }
+}
+```
+
+### RuleEngine 类
+
+规则引擎，内置 7 条规则，每 30 秒评估一次指标。
+
+#### evaluate(metrics)
+评估指标，返回触发的规则列表。
+
+#### addRule(rule)
+添加自定义规则。
+
+**rule 结构：**
+
+```javascript
+{
+  name: 'my-rule',
+  cooldown: 300000,  // 冷却时间（毫秒）
+  condition: (metrics) => metrics.performance.fps < 30,
+  action: { type: 'param-tune', target: 'renderer', param: 'batchSize', value: 50 }
+}
+```
+
+#### removeRule(name)
+移除规则。
+
+### EvolutionEngine 类
+
+进化执行引擎，根据规则动作执行浏览器内调参或请求外部 Agent。
+
+#### start()
+启动进化引擎（开始周期性评估 + Agent 同步）。
+
+#### stop()
+停止进化引擎。
+
+#### getEvolutionHistory()
+获取进化历史记录。
+
+#### getMetrics()
+获取最近一次指标快照（代理 `MetricsCollector.getSnapshot()`）。
+
+### PerfPanel 类
+
+性能面板，在容器右上角显示实时指标。
+
+#### enable()
+启用性能面板。
+
+#### disable()
+禁用性能面板。
+
+#### isEnabled()
+检查是否启用。
+
+### GlobalErrorHandler 类
+
+全局错误处理器，捕获所有未捕获异常。
+
+#### enable()
+启用全局错误处理。
+
+#### disable()
+禁用全局错误处理。
+
+#### isEnabled()
+检查是否启用。
+
+#### getErrorStats()
+获取错误统计（总数、分类、最近错误）。
+
+#### clear()
+清空错误记录。
+
+---
+
+## Guardrail 硬约束系统
+
+`Guardrail` 是 CardFrame 的硬约束运行时模块，防止 AI Agent 退回到原生 HTML / Tailwind / 直接 DOM 操作的旧路径。通过 `options.guardrail` 配置，默认启用。
+
+### 检测规则
+
+| 规则 | 严重性 | 检测内容 |
+|------|--------|----------|
+| **R1** | `warn` | 容器内发现非卡片元素（`<div>` / `<section>` 等） |
+| **R2** | `info` | 容器内元素使用了 Tailwind / Bootstrap / Bulma CSS 框架 class |
+| **R3** | `error` | 直接 DOM 操作（`container.appendChild` / `container.innerHTML =` / `insertAdjacentHTML`） |
+| **R4** | `error` | 绕过 Store 私有字段访问（`frame.store._cards` / `._pool` / `._relationships` 等） |
+
+> 作用范围：仅检测 `<card-frame>` 容器**内部**直接子元素。页面 header/nav/footer 等容器外部元素不受约束。框架 Renderer 创建的卡片 wrapper（带 `data-card-id` 属性）自动跳过。
+
+### GuardrailOptions
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | `boolean` | `true` | 是否启用检测 |
+| `level` | `'error' \| 'warn' \| 'info'` | `'warn'` | 最低报告级别。低于此级别的违规不输出 console |
+| `onViolation` | `(v: GuardrailViolation) => void` | `null` | 违规回调 |
+| `excludedFrameworks` | `string[]` | `[]` | 跳过指定 CSS 框架检测（`'tailwind'` / `'bootstrap'` / `'bulma'`） |
+| `testMode` | `boolean` | `false` | `true` 时不输出 console 但仍记录违规（用于测试） |
+
+### GuardrailViolation
+
+```typescript
+interface GuardrailViolation {
+  rule: 'R1' | 'R2' | 'R3' | 'R4';
+  severity: 'error' | 'warn' | 'info';
+  message: string;
+  element: string;
+  suggestion: string;
+  timestamp: number;
+}
+```
+
+### 实例方法
+
+#### scan()
+对容器现有子元素执行一次扫描。构造时自动调用。
+
+#### observe()
+启动 MutationObserver 持续监控 + DOM API 劫持 + Store Proxy。构造时自动调用。
+
+#### disconnect()
+停止监控，恢复原始 DOM API。调用后不再检测新违规。
+
+#### destroy()
+等价于 `disconnect()` + 标记为已销毁，防止重用。`CardFrame.destroy()` 时自动调用。
+
+#### getStats()
+返回违规统计：
+
+```javascript
+const stats = frame.guardrail.getStats();
+// {
+//   total: 12,
+//   byRule: { R1: 5, R2: 3, R3: 2, R4: 2 },
+//   bySeverity: { error: 4, warn: 5, info: 3 },
+//   enabled: true,
+//   level: 'warn'
+// }
+```
+
+### 构建时检查
+
+```bash
+npm run guardrail                    # 扫描 examples/
+npm run guardrail -- src examples    # 扫描指定目录
+```
+
+### 静态属性
+
+`CardFrame.Guardrail` — Guardrail 构造器，可用于独立实例化。
 
 ---
 

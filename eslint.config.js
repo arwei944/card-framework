@@ -15,6 +15,7 @@ const browserGlobals = {
   performance: 'readonly',
   globalThis: 'readonly',
   HTMLElement: 'readonly',
+  Element: 'readonly',
   customElements: 'readonly',
   MutationObserver: 'readonly',
   ResizeObserver: 'readonly',

@@ -7,6 +7,76 @@
 
 ---
 
+## [v1.2.0] - 硬约束系统 - 2026-07-14
+
+### 新增
+- **Guardrail 硬约束系统**：防止 AI Agent 退回到原生 HTML/Tailwind/直接 DOM 操作的旧路径
+  - 运行时检测 4 类逃逸用法：R1（非卡片元素）、R2（逃逸 CSS 框架）、R3（直接 DOM 操作）、R4（绕过 Store 私有字段）
+  - MutationObserver 持续监控容器变更；DOM API 劫持（appendChild/insertBefore/innerHTML setter）；Store Proxy 拦截私有字段访问
+  - 可配置严重性级别（error/warn/info）和 `onViolation` 回调；通过 `options.guardrail` 配置，默认启用
+- **构建时检查脚本** `scripts/guardrail-check.js`：CI 集成，扫描 HTML/JS 中的逃逸用法
+- **Agent 指令文件**：`AGENTS.md` / `.cursorrules` / `CLAUDE.md`，三套 AI Agent 提示层指令
+
+### 改进
+- `package.json` 新增 `guardrail` 和 `ci` 脚本
+- 测试数 201 → 218（新增 17 个 Guardrail 测试）
+
+### 升级指南
+- Guardrail 默认启用。遇到误报可通过 `new CardFrame(el, { guardrail: false })` 关闭
+- 在 CI 中运行 `npm run guardrail` 检查逃逸用法
+- 将 `AGENTS.md` 放在项目根目录，AI Agent 会自动读取硬约束指令
+
+## [v1.1.0] - 商用化加固 - 2026-07-13
+
+### 修复
+- **[P0]** 删除 `src/index.js` 中的 5 个遗留全局单例（`CardFrame.store` / `.typeRegistry` / `.renderer` / `.autoFixer` / `.realTimeValidator`），消除多实例间的状态串扰。每个 `CardFrame` 实例现在完全拥有自己的子系统。
+- **[P0]** 全量重写 `types/card-framework.d.ts`，修复 22 项与实际源码的脱节：
+  - `LayoutMode` 类型从 `'flow' | 'canvas'` 修正为 `'stream' | 'canvas'`
+  - `createCard` / `updateCard` 返回类型从 `Card` / `void` 修正为 `Card | null`
+  - 批量操作返回类型从 `Card[]` / `void` 修正为 `BatchResult { success, errors }`
+  - `Store.updateCard` / `updateRelationship` 签名修正为单参数 + 返回值
+  - 新增 `PluginSandbox` 类和 `PluginSandboxContext` 接口声明
+  - 新增进化子系统 6 个类的声明（`ActionLogger` / `MetricsCollector` / `RuleEngine` / `EvolutionEngine` / `PerfPanel` / `GlobalErrorHandler`）
+  - 新增性能模块 3 个类的声明（`CardObjectPool` / `LayoutCache` / `QueryIndex`）
+  - 新增 `ShadowCardRegistry` 类声明
+  - `CardFrameOptions` 修正：`enableVirtualScroll` → `virtualScroll`、`enableRealTimeValidation` → `autoValidate`，新增 `csp` / `evolution` / `plugins` / `allowedPluginPermissions` / `cardPool` / `actionLogger`
+  - 补全 `Store` 缺失的 7 个方法（`getCardsByTag` / `getCardsByStatus` / `queryCards` / `notifyDebounced` / `getIndex` / `setPool` 等）
+  - 补全 `ThemeManager` 缺失的 5 个方法（`removeTheme` / `followSystemTheme` / `isFollowingSystem` 等）
+  - 补全 `I18nManager` 缺失的 3 个方法（`getAllLocales` / `getCurrentLocale` / `setFallbackLocale`），修正 `getLocale` 签名
+  - 补全 `VirtualScroller` 缺失的 4 个方法（`getPoolSize` / `getVisibleCardCount` / `getVisibleRange` / `destroy`）
+  - 补全 `Security` 缺失的 2 个方法（`sanitizeScriptContent` / `validatePropValue`），修正 `checkCSPCompatibility` 返回类型
+  - 补全 `CardFrameInstance` 缺失的 20+ 方法（`undo` / `redo` / `rollback` / `enablePerfPanel` / `enableGlobalErrorHandler` / `getEvolutionHistory` / `evolveNow` 等）
+  - 移除虚构的静态方法 `load` / `preload` / `isModuleLoaded` 和虚构的 `CardFrame.create`，替换为实际的 `from` / `fromJSON` / `getPerfStats` / `applyCSP` / `defineShadowCard`
+  - 移除虚构的全局实例属性 `store` / `typeRegistry` / `renderer` / `autoFixer` / `realTimeValidator`
+  - `version` 重命名为 `VERSION`（与源码 static getter 一致）
+
+- **[P1]** 统一 `Store` 不可变语义：`getRelationship` / `getAllRelationships` / `getRelationshipsByCard` 现在返回深克隆，与 `getCard` / `getAllCards` 语义一致。修复了外部代码修改返回的关系对象会直接污染 store 但不触发事件的隐患。
+- **[P1]** `EvolutionEngine` 现在默认关闭（`options.evolution` 需显式 opt-in），避免生产环境意外启用实验性功能。
+
+### 改进
+- `docs/architecture-overview.md` 修正了自进化子系统的错误描述：进化历史已持久化到 `localStorage`，`agentSyncInterval` 已实现定时推送，WebSocket 连接非空转。
+- `docs/api-reference.md` 新增 PluginSandbox 类章节、进化子系统章节、操作历史与撤销/重做章节。
+- `docs/plugin-development.md` 新增「插件沙箱与权限」章节（权限声明、沙箱 API 表面、资源追踪与自动清理、限流）。
+- `docs/agent-guide.md` 新增「自进化 API」章节，修订偏移防护体系为逻辑分类说明。
+- `README.md` 恢复被误删的功能项（PluginSandbox、Undo/Redo、CSP 兼容、RTL），修复 `createCard` 调用示例和 TypeScript 示例中的 IIFE 残留描述。
+
+### 测试
+- 201 passing / 0 failing（0.985s），涵盖单元测试 + 集成测试 + 安全测试 + Web Components 测试 + 插件沙箱测试。
+
+### 升级指南
+
+**从 v1.0.0 升级：**
+
+1. 运行 `npm install` 获取最新构建
+2. **Breaking**：若代码依赖 `CardFrame.store` / `.typeRegistry` / `.renderer` 等全局单例，需改为通过 `new CardFrame(container)` 创建实例并使用实例的子模块
+3. **Breaking**：若代码依赖 `CardFrame.load` / `preload` / `isModuleLoaded`（虚构的模块加载 API），需移除——这些方法从未在源码中实现
+4. **Breaking**：若代码依赖 `CardFrame.create(container, options)`，需改为 `new CardFrame(container, options)` 或 `CardFrame.from(container, options)`
+5. **Breaking**：若依赖 `store.getRelationship()` / `getAllRelationships()` / `getRelationshipsByCard()` 返回引用相等（`===`），需改为深度比较（`deepEqual`）——这些方法现在返回深克隆
+6. **Breaking**：若依赖 `options.evolution !== false` 隐式开启自进化，需显式设置 `options.evolution: true` 或 `options.evolution: { agentEndpoint: '...' }`
+7. TypeScript 项目可直接享受更准确的类型提示
+
+---
+
 ## [v1.0.0] - 正式发布 - 2026-07-09
 
 ### 新增
@@ -64,7 +134,7 @@
   - 生产环境就绪
 
 ### 改进
-- 单元测试扩充至 231 个，覆盖率保持 85% 以上
+- 单元测试扩充至 201 个，覆盖率保持 85% 以上
 - 核心引擎渲染队列进一步优化，大列表下更流畅
 - API 参考手册补充 Store、TypeRegistry、Renderer 等模块的完整接口
 - 插件开发指南新增钩子机制和配置选项章节
@@ -148,7 +218,7 @@ v1.0.0 完全向后兼容 v0.3.0，无需修改现有代码即可升级。
   - 文档搜索页面（search.html）
 
 ### 优化
-- 单元测试覆盖率提升，新增至 231 个测试用例
+- 单元测试覆盖率提升，新增至 201 个测试用例
 - 核心引擎性能优化，渲染速度提升 40%
 - 错误边界增强，异常恢复更稳定
 - 文档和示例代码完善

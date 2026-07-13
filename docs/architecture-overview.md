@@ -37,7 +37,7 @@ src/
 - **三格式产物**：IIFE（`<script>` 直引 + `window.CardFrame`）、ESM（bundler/`<script type=module>`）、CJS（Node require），各自含 minified + sourcemap。
 - **类型声明**：`types/card-framework.d.ts` 由构建拷贝到 `dist/`；与源码的同步由人工维护（见风险清单，存在脱节风险）。
 
-> ⚠️ **已知遗留**：`src/index.js` 仍创建了 5 个**全局静态单例**（`CardFrame.store` / `.typeRegistry` / `.renderer` / `.autoFixer` / `.realTimeValidator` / `.shadowCardRegistry`）并在全仓库无任何引用——属 Phase 4 计划删除但未清理的死代码，会残留全局可变状态，建议移除。
+> ✅ **v1.1.0 已清理**：早期 `src/index.js` 创建过 5 个全局静态单例（`CardFrame.store` / `.typeRegistry` / `.renderer` / `.autoFixer` / `.realTimeValidator`），v1.1.0 已删除——每个 `CardFrame` 实例现在完全拥有自己的子系统，无全局可变状态残留。
 
 ---
 
@@ -76,7 +76,7 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 
 | 关注点 | 实现 | 状态 |
 |--------|------|------|
-| 测试 | jsdom 真实 DOM + Mocha，**190 passing** | ✅ 真实行为验证 |
+| 测试 | jsdom 真实 DOM + Mocha，**201 passing** | ✅ 真实行为验证 |
 | 静态检查 | ESLint，`src scripts`，0 error / 3 warning | ✅ 干净 |
 | 安全（XSS） | `Security` allowlist 净化 + 多轮稳定化 + URL/style 过滤 | ✅ 自述非 DOMPurify 替代 |
 | 安全（权限） | `PluginSandbox` **运行时**按 `can(permission)` 裁剪 API 面 | ✅ 真实执行 |
@@ -85,6 +85,7 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 | 性能 | 对象池 / 虚拟滚动 / 布局缓存 / 查询索引 / rAF 批处理 | ✅ |
 | 可观测 | `PerfPanel`、`getStats()`、`MetricsCollector` | ✅ |
 | 插件清理 | `uninstall` → `sandbox.destroy()` 清理类型/主题/监听器/定时器 | ✅ |
+| 硬约束 | `Guardrail` 运行时检测（R1-R4）+ `guardrail-check.js` 构建时扫描 | ✅ |
 
 ---
 
@@ -95,8 +96,9 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 **A. 浏览器端（`src/evolution/`）**
 - `MetricsCollector` 每 5s 采集性能/交互/架构指标。
 - `RuleEngine` 每 30s 评估，产出 `param-tune`（浏览器内直接调参）或 `code-evolve`（请求外部 Agent）。
-- `EvolutionEngine` 维护**内存**进化历史（上限 1000 条，刷新即丢），并通过 XHR POST 到 Agent、通过 WebSocket 连接 Agent（但当前 WS 仅空转回声，无实际指标推送）。
-- **注意**：`config.agentSyncInterval = 60000` 已声明但代码中从未使用——即"定时向 Agent 推送指标"并未实现。
+- `EvolutionEngine` 维护进化历史（上限 1000 条），**已持久化到 `localStorage`**（key: `cardframe.evolution.history`，刷新不丢失；storage 不可用时降级为仅内存）。
+- `agentSyncInterval`（默认 60s）已实现：`_startAgentSync()` 定时通过 XHR POST `/api/metrics` + WebSocket `metrics-report` 向 Agent 推送指标。
+- WebSocket 连接用于接收 Agent 推送的 `evolution-result` 消息（非空转）。
 
 **B. 独立 Node 服务（`evolution-agent/`）—— 已按 `docs/evolution-refactoring-plan.md` 重构**
 - HTTP :9100 + 可选 WebSocket（`ws` 为**可选依赖**，缺失时降级），默认绑定 `127.0.0.1`。

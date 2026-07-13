@@ -240,11 +240,12 @@ export class Store {
   }
 
   getRelationship(id) {
-    return this.relationships.get(id);
+    const rel = this.relationships.get(id);
+    return rel ? Utils.deepClone(rel) : undefined;
   }
 
   getAllRelationships() {
-    return Array.from(this.relationships.values());
+    return Array.from(this.relationships.values()).map(r => Utils.deepClone(r));
   }
 
   getRelationshipsByCard(cardId) {
@@ -253,7 +254,7 @@ export class Store {
     const result = [];
     relIds.forEach(relId => {
       const rel = this.relationships.get(relId);
-      if (rel) result.push(rel);
+      if (rel) result.push(Utils.deepClone(rel));
     });
     return result;
   }
