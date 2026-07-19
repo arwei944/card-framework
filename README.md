@@ -2,13 +2,12 @@
 
 > 以卡片为核心数据单元和 UI 载体的框架无关、Agent 友好的前端框架
 
-[![Test Status](https://img.shields.io/badge/tests-201-brightgreen.svg)](https://github.com/your-org/card-framework/actions)
+[![Test Status](https://img.shields.io/badge/tests-201-brightgreen.svg)](https://github.com/arwei944/card-framework/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)](CHANGELOG.md)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16.x-green.svg)](package.json)
 [![npm](https://img.shields.io/badge/npm-%3E%3D8.x-red.svg)](package.json)
-[![TypeScript](https://img.shields.io/badge/typescript-supported-blue.svg)](dist/card-framework.d.ts)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](.github/CONTRIBUTING.md)
+[![TypeScript](https://img.shields.io/badge/typescript-supported-blue.svg)](types/card-framework.d.ts)
 [![Documentation](https://img.shields.io/badge/docs-ready-blue.svg)](docs/)
 [![Code Size](https://img.shields.io/badge/size-~200KB-green.svg)](dist/)
 [![Platform](https://img.shields.io/badge/platform-web-lightgrey.svg)]()
@@ -282,3 +281,11 @@ npm test
 - [示例代码](examples/)
 - [插件目录](plugins/)
 - [测试用例](tests/)
+- [TypeScript 定义](types/card-framework.d.ts)
+
+## 使用 CardFrame 的项目
+
+| 项目 | 说明 |
+|------|------|
+| [MindCanvas v4](https://github.com/arwei944/mindcanvas-v4) | AI-First 个人知识操作系统（墨书主题） |
+| [MindCanvas](https://github.com/arwei944/mindcanvas) | MindCanvas 项目主仓库（feature/mindcanvas-mvp 分支） |
