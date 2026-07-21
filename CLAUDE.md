@@ -11,7 +11,7 @@
 
 ## 卡片类型
 
-`text` / `task` / `image` / `list` / `progress`
+`text` / `task` / `image` / `list` / `progress` / `link` / `note` / `code`（+ abstract `base`）
 
 ## 代码模板
 

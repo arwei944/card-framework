@@ -38,8 +38,11 @@ import { getStats } from './StatsService.js';
 import { Utils } from '../utils/Utils.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
 import { Perf } from '../perf/Perf.js';
-import { EVENT_TYPES, DEFAULT_CONFIG, VERSION } from '../utils/constants.js';
+import { DEFAULT_CONFIG, VERSION } from '../utils/constants.js';
 import { Guardrail } from '../guardrail/Guardrail.js';
+import { batchMethods } from './cardframe/batchMethods.js';
+import { relationshipMethods } from './cardframe/relationshipMethods.js';
+import { lifecycleMethods } from './cardframe/lifecycleMethods.js';
 
 class CardFrame {
   constructor(container, options = {}) {
@@ -108,8 +111,8 @@ class CardFrame {
       overscan: options.overscan || DEFAULT_CONFIG.VIRTUAL_SCROLL_OVERSCAN
     });
 
-    // Inject object pool into Store for card pooling
-    this.store._pool = this.cardObjectPool;
+    // Inject object pool into Store for card pooling (public API)
+    this.store.setPool(this.cardObjectPool);
 
     // Evolution engine (disabled by default — experimental, opt-in via options.evolution)
     this.evolutionEngine = options.evolution
@@ -232,23 +235,37 @@ class CardFrame {
 
   /**
    * 更新卡片信息
-   * @param {Object} card - 完整的卡片对象（必须包含 id）
+   * @param {Object|string} cardOrId - 完整卡片对象，或卡片 id（配合 partial）
+   * @param {Object} [partial] - 增量字段：props 映射，或 { props, status, position, style }
    * @returns {Object|null} 更新后的卡片对象，卡片不存在则返回 null
    * @fires cardUpdated
    */
-  updateCard(card) {
+  updateCard(cardOrId, partial) {
+    const id = typeof cardOrId === 'string' ? cardOrId : (cardOrId && cardOrId.id);
     return this.circuitBreaker.execute(() => {
-      const previousState = this.store.getCard(card.id);
-      const result = this.store.updateCard(card);
-      if (previousState) {
+      const previousState = this.store.getCard(id);
+      if (!previousState) return null;
+
+      let result;
+      if (typeof cardOrId === 'string') {
+        result = this.store.updateCardProps(cardOrId, partial || {});
+      } else if (partial && typeof partial === 'object') {
+        // id-bearing card + partial merge
+        result = this.store.updateCardProps(cardOrId.id, partial);
+      } else {
+        result = this.store.updateCard(cardOrId);
+      }
+
+      if (result) {
+        const nextProps = result.props || {};
         this.actionLogger.record('updateCard', {
-          cardId: card.id,
+          cardId: id,
           previousState: { ...previousState.props },
-          newState: { ...card.props }
+          newState: { ...nextProps }
         });
       }
       return result;
-    }, card.id);
+    }, id);
   }
 
   /**
@@ -292,198 +309,6 @@ class CardFrame {
    */
   getCardsByType(type) {
     return this.store.getCardsByType(type);
-  }
-
-  // ─── Batch Operations ─────────────────────────────────────
-
-  /**
-   * 批量创建卡片
-   * @param {Array<Object>} cards - 卡片数据数组，每项包含 type 和 props
-   * @returns {Object} 结果对象，包含 success 和 errors
-   * @fires cardAdded - 每张成功创建的卡片都会触发
-   * @fires frameworkError - 每张创建失败的卡片都会触发
-   */
-  batchCreateCards(cards) {
-    const results = [];
-    const errors = [];
-
-    cards.forEach((cardData, index) => {
-      try {
-        const card = this.createCard(cardData.type, cardData.props || {});
-        let changed = false;
-        if (cardData.position) { card.position = cardData.position; changed = true; }
-        if (cardData.status) { card.status = cardData.status; changed = true; }
-        if (cardData.style) { card.style = cardData.style; changed = true; }
-
-        if (cardData.id && cardData.id !== card.id) {
-          // Re-key the card in the Store so getCard(customId) works
-          this.store.removeCard(card.id);
-          card.id = cardData.id;
-          this.store.addCard(card);
-        } else if (changed) {
-          this.store.updateCard(card);
-        }
-        results.push(card);
-      } catch (e) {
-        errors.push({ index, error: e.message, cardData });
-        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
-          type: 'batch_error',
-          message: `批量创建卡片失败 (索引 ${index}): ${e.message}`,
-          error: e,
-          context: { operation: 'batchCreateCards', index, cardData },
-          timestamp: Date.now()
-        });
-      }
-    });
-
-    return { success: results, errors };
-  }
-
-  /**
-   * 批量更新卡片
-   * @param {Array<Object>} updates - 更新数据数组，每项包含 id 及要更新的字段
-   * @returns {Object} 结果对象，包含 success 和 errors
-   * @fires cardUpdated - 每张成功更新的卡片都会触发
-   * @fires frameworkError - 每张更新失败的卡片都会触发
-   */
-  batchUpdateCards(updates) {
-    const results = [];
-    const errors = [];
-
-    updates.forEach((update, index) => {
-      try {
-        const card = this.getCard(update.id);
-        if (!card) {
-          errors.push({ index, error: `卡片 ${update.id} 不存在`, update });
-          return;
-        }
-        const updated = { ...card, ...update, id: update.id };
-        const result = this.updateCard(updated);
-        results.push(result);
-      } catch (e) {
-        errors.push({ index, error: e.message, update });
-        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
-          type: 'batch_error',
-          message: `批量更新卡片失败 (索引 ${index}): ${e.message}`,
-          error: e,
-          context: { operation: 'batchUpdateCards', index, update },
-          timestamp: Date.now()
-        });
-      }
-    });
-
-    return { success: results, errors };
-  }
-
-  /**
-   * 批量删除卡片
-   * @param {Array<string>} ids - 要删除的卡片 ID 数组
-   * @returns {Object} 结果对象，包含 success 和 errors
-   * @fires cardRemoved - 每张成功删除的卡片都会触发
-   * @fires frameworkError - 每张删除失败的卡片都会触发
-   */
-  batchRemoveCards(ids) {
-    const results = [];
-    const errors = [];
-
-    ids.forEach((id, index) => {
-      try {
-        const success = this.removeCard(id);
-        if (success) {
-          results.push(id);
-        } else {
-          errors.push({ index, error: `卡片 ${id} 删除失败`, id });
-        }
-      } catch (e) {
-        errors.push({ index, error: e.message, id });
-        this.eventBus.emit(EVENT_TYPES.FRAMEWORK_ERROR, {
-          type: 'batch_error',
-          message: `批量删除卡片失败 (索引 ${index}): ${e.message}`,
-          error: e,
-          context: { operation: 'batchRemoveCards', index, id },
-          timestamp: Date.now()
-        });
-      }
-    });
-
-    return { success: results, errors };
-  }
-
-  // ─── Action History (Undo/Redo) ───────────────────────────
-
-  undo() {
-    return this.actionLogger.undo(this.store);
-  }
-
-  redo() {
-    return this.actionLogger.redo(this.store);
-  }
-
-  rollback(timestamp) {
-    return this.actionLogger.rollback(timestamp, this.store);
-  }
-
-  getActionHistory() {
-    return this.actionLogger.getHistory();
-  }
-
-  clearActionHistory() {
-    this.actionLogger.clear();
-  }
-
-  // ─── Relationships ────────────────────────────────────────
-
-  /**
-   * 创建卡片之间的关系
-   * @param {string} sourceId - 源卡片 ID
-   * @param {string} targetId - 目标卡片 ID
-   * @param {string} [type='reference'] - 关系类型
-   * @param {Object} [data={}] - 附加的关系数据
-   * @returns {Object} 创建的关系对象
-   * @fires relationshipAdded
-   */
-  createRelationship(sourceId, targetId, type = 'reference', data = {}) {
-    const rel = this.store.addRelationship({
-      sourceId,
-      targetId,
-      type,
-      data
-    });
-    if (rel) {
-      this.actionLogger.record('addRelationship', { relationship: { ...rel } });
-    }
-    return rel;
-  }
-
-  /**
-   * 删除指定关系
-   * @param {string} id - 关系 ID
-   * @returns {boolean} 删除成功返回 true
-   * @fires relationshipRemoved
-   */
-  removeRelationship(id) {
-    const rel = this.store.getRelationship(id);
-    const result = this.store.removeRelationship(id);
-    if (rel && result) {
-      this.actionLogger.record('removeRelationship', { relationship: { ...rel } });
-    }
-    return result;
-  }
-
-  getRelationship(id) {
-    return this.store.getRelationship(id);
-  }
-
-  getAllRelationships() {
-    return this.store.getAllRelationships();
-  }
-
-  getRelationshipsByCard(cardId) {
-    return this.store.getRelationshipsByCard(cardId);
-  }
-
-  getRelationshipsByType(type) {
-    return this.store.getRelationshipsByType(type);
   }
 
   // ─── Layout ───────────────────────────────────────────────
@@ -736,108 +561,22 @@ class CardFrame {
     }
   }
 
-  // ─── Cleanup ──────────────────────────────────────────────
-
-  destroy() {
-    if (this._destroyed) return;
-    this._destroyed = true;
-
-    // 0. Cancel any pending render frame the Renderer may have scheduled
-    if (this.renderer && this.renderer._rafId != null) {
-      cancelAnimationFrame(this.renderer._rafId);
-      this.renderer._rafId = null;
-    }
-
-    // 1. Stop evolution engine (includes MetricsCollector timer)
-    if (this.evolutionEngine) {
-      this.evolutionEngine.stop();
-      this.evolutionEngine = null;
-    }
-
-    // 2. Stop real-time validator (MutationObserver)
-    if (this.realTimeValidator) {
-      this.realTimeValidator.stop();
-    }
-
-    // 2b. Stop guardrail (MutationObserver + DOM API hijack)
-    if (this.guardrail) {
-      this.guardrail.destroy();
-      this.guardrail = null;
-    }
-
-    // 3. Disable perf panel (RAF)
-    if (this.perfPanel) {
-      this.perfPanel.disable();
-    }
-
-    // 4. Disable global error handler (window events)
-    if (this.globalErrorHandler) {
-      this.globalErrorHandler.disable();
-    }
-
-    // 5. Disable virtual scroller (window resize/scroll events)
-    if (this.virtualScroller) {
-      this.virtualScroller.destroy();
-    }
-
-    // 6. Clean up relationship engine (SVG layer, drag events)
-    if (this.relationshipEngine) {
-      this.relationshipEngine.disable();
-    }
-
-    // 7. Clear all EventBus listeners
-    this.eventBus.clear();
-
-    // 8. Clear object pool
-    if (this.cardObjectPool && typeof this.cardObjectPool.clear === 'function') {
-      this.cardObjectPool.clear();
-    }
-
-    // 9. Clear store data/index (drop references so it can be GC'd)
-    if (this.store) {
-      if (this.store._notifyTimer) {
-        clearTimeout(this.store._notifyTimer);
-        this.store._notifyTimer = null;
-      }
-      this.store.listeners.clear();
-      this.store.cards.clear();
-      this.store.relationships.clear();
-      if (this.store._relIndex) this.store._relIndex.clear();
-      if (this.store._index && typeof this.store._index.clear === 'function') {
-        this.store._index.clear();
-      }
-      this.store._pool = null;
-    }
-
-    // 10. Clean up container: remove rendered DOM + framework marker
-    this.container.classList.remove('card-frame');
-    this.container.innerHTML = '';
-    if (this.container.__cardFrame === this) {
-      delete this.container.__cardFrame;
-    }
-
-    // 11. Null out sub-module references
-    // (store/typeRegistry/autoFixer/circuitBreaker/actionLogger kept for degraded access)
-    this.renderer = null;
-    this.layoutEngine = null;
-    this.realTimeValidator = null;
-    this.pluginManager = null;
-    this.globalErrorHandler = null;
-    this.perfPanel = null;
-    this.cardObjectPool = null;
-    this.themeManager = null;
-    this.i18n = null;
-    this.relationshipEngine = null;
-    this.virtualScroller = null;
-    this.eventBus = null;
-  }
-
   /**
    * 框架版本号
    * @type {string}
    */
   static get VERSION() {
     return VERSION;
+  }
+
+  /**
+   * 注册卡片类型（委托 TypeRegistry；默认拒绝不安全模板）
+   * @param {Object} typeDef
+   * @param {Object} [options]
+   * @returns {boolean}
+   */
+  registerType(typeDef, options) {
+    return this.typeRegistry.register(typeDef, options);
   }
 
   /**
@@ -856,5 +595,7 @@ class CardFrame {
     return true;
   }
 }
+
+Object.assign(CardFrame.prototype, batchMethods, relationshipMethods, lifecycleMethods);
 
 export { CardFrame };

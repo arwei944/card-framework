@@ -1,3 +1,4 @@
+> **ARCHIVED / 非当前**：本文档为历史材料，结论与行号可能已失效。现行事实见 `docs/architecture-overview.md` 与 `src/`。索引：`docs/archive/README.md`。
 # CardFrame Guardrail 硬约束系统设计
 
 > **状态**：Implemented (2026-07-14)

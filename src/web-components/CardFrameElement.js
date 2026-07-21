@@ -1,15 +1,14 @@
 /**
  * CardFrameElement — custom element for the card framework container (<card-frame>).
+ *
+ * B2/B3 Fix: Now delegates to the CardFrame class for unified initialization,
+ * ensuring both JS API and declarative HTML entry points share identical behavior.
+ * Added disconnectedCallback for proper resource cleanup.
+ *
  * @module web-components/CardFrameElement
  */
 
-import { Store } from '../core/Store.js';
-import { TypeRegistry } from '../core/TypeRegistry.js';
-import { defaultCardTypes } from '../core/defaultCardTypes.js';
-import { EventBus } from '../core/EventBus.js';
-import { Renderer } from '../render/Renderer.js';
-import { AutoFixer } from '../validation/AutoFixer.js';
-import { RealTimeValidator } from '../validation/RealTimeValidator.js';
+import { CardFrame } from '../core/CardFrame.js';
 
 // Conditional base class — allows module to load in non-browser environments
 const _HTMLElement = typeof HTMLElement !== 'undefined' ? HTMLElement : class {};
@@ -18,39 +17,12 @@ export class CardFrameElement extends _HTMLElement {
   connectedCallback() {
     if (!this._initialized) {
       this._initialized = true;
-      this.classList.add('card-frame');
 
-      const localEventBus = new EventBus();
-      const localStore = new Store(localEventBus);
-      const localTypeRegistry = new TypeRegistry();
-      defaultCardTypes.forEach(t => localTypeRegistry.register(t));
-      const localRenderer = new Renderer(this, localTypeRegistry, localStore, localEventBus);
-      const localAutoFixer = new AutoFixer(localTypeRegistry, localStore, this, localEventBus);
-      const localValidator = new RealTimeValidator(this, localTypeRegistry, localStore, localAutoFixer, localEventBus);
+      // Delegate to CardFrame class — unified initialization
+      this._frame = new CardFrame(this);
 
-      this._store = localStore;
-      this._renderer = localRenderer;
-      this._autoFixer = localAutoFixer;
-      this._validator = localValidator;
-
-      const frame = {
-        eventBus: localEventBus,
-        store: localStore,
-        typeRegistry: localTypeRegistry,
-        renderer: localRenderer,
-        autoFixer: localAutoFixer,
-        realTimeValidator: localValidator
-      };
-      this.__cardFrame = frame;
-
+      // Initialize any <cf-card> children that connected before this element
       this._initPendingCards();
-      localValidator.start();
-
-      localStore.subscribe(() => {
-        this.syncCards();
-      });
-
-      this.syncCards();
     }
   }
 
@@ -68,10 +40,14 @@ export class CardFrameElement extends _HTMLElement {
     });
   }
 
-  syncCards() {
-    const cards = this._store.getAllCards();
-    if (this._renderer) {
-      this._renderer.renderCards(cards);
+  /**
+   * B3 Fix: Properly clean up all resources when the custom element is
+   * removed from the DOM, preventing memory leaks.
+   */
+  disconnectedCallback() {
+    if (this._frame) {
+      this._frame.destroy();
+      this._frame = null;
     }
   }
 }

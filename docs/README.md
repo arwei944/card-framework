@@ -1,43 +1,79 @@
-# CardFrame 文档导航与时效说明
+# CardFrame 文档导航
 
-> 本文档用于**防止误读过时文档**。CardFrame 在 2026-07 经历了 Phase 4–7 重构：
-> 从"单体 IIFE + 正则构建 + mock 测试"转为"**ES Module 源码 + esbuild + jsdom 真实测试**"。
-> 重构前后架构差异巨大，请先读 [架构总览（当前）](architecture-overview.md)。
+> **当前事实源**：[`architecture-overview.md`](architecture-overview.md) · 源码 `src/` · 根目录 `package.json`（**v1.2.0**）  
+> 历史材料一律见 [`archive/`](archive/README.md)，**结论不代表当前代码**。
 
 ---
 
-## ✅ 当前权威文档（以这些为准）
+## 快速入口
+
+| 你想… | 去读 |
+|--------|------|
+| 5 分钟上手 | [getting-started.md](getting-started.md) |
+| 查 API | [api-reference.md](api-reference.md) |
+| 理解架构 | [architecture-overview.md](architecture-overview.md) |
+| 写插件 | [plugin-development.md](plugin-development.md)（官方 ESM 示例：`plugins/task-manager`） |
+| 给 AI Agent 用 | [agent-guide.md](agent-guide.md) · 根目录 [AGENTS.md](../AGENTS.md) |
+| 安全 / 部署 | [security.md](security.md) · [deployment.md](deployment.md) |
+| 后端同步 | [backend-integration.md](backend-integration.md) |
+| 项目硬约束 | [CONSTRAINTS.md](CONSTRAINTS.md) |
+| Evolution Agent | [../evolution-agent/README.md](../evolution-agent/README.md) |
+
+---
+
+## 现行文档索引
+
+### 入门与参考
 
 | 文档 | 内容 |
 |------|------|
-| [architecture-overview.md](architecture-overview.md) | **当前**真实架构、数据流、横切关注点、进化子系统真实状态 |
-| [security.md](security.md) | XSS 防护、CSP、危险属性清单 |
-| [api-reference.md](api-reference.md) | API 参考（注意：与源码仍可能存在 `.d.ts` 脱节，见下） |
-| [plugin-development.md](plugin-development.md) | 插件开发（沙箱/权限/hook） |
-| [agent-guide.md](agent-guide.md) | Agent 操作指南 |
-| [best-practices.md](best-practices.md) | 性能/安全/插件/AI/主题最佳实践 |
+| [getting-started.md](getting-started.md) | 引入方式、声明式 HTML、JS API |
+| [api-reference.md](api-reference.md) | 完整 API（含增量 `updateCard`、Guardrail、Store 公开方法） |
 | [faq.md](faq.md) | 常见问题 |
-| [getting-started.md](getting-started.md) | 快速开始 |
-| **[evolution-refactoring-plan.md](evolution-refactoring-plan.md)** | **自进化子系统重构方案（最新规划）** |
-| [backend-integration.md](backend-integration.md) | **业务数据后端对接：BackendSync 适配器用法 + 示例服务** |
-| [deployment.md](deployment.md) | **生产就绪：鉴权/一致性/可观测性/CI/SSR-SEO 落地说明** |
-| `../evolution-agent/README.md` | 进化 Agent 真实状态（实验性、无鉴权、无 LLM） |
+| [best-practices.md](best-practices.md) | 性能 / 安全 / 插件实践 |
 
-## 📜 历史记录（仅作过程留痕，结论已不适用）
+### 架构与约束
 
-| 文档 | 性质 | 横幅 |
-|------|------|------|
-| architecture-audit-report.md | 重构前架构评估（结论已失效） | ⛔ DEPRECATED |
-| code-logic-quality-assessment.md | 重构前代码质量评估 | 📜 历史 |
-| refactoring-plan.md | Phase 4 重构计划（目标已实现） | 📜 历史 |
-| task-breakdown.md | Phase 4 任务拆解（已完成） | 📜 历史 |
-| specs/2026-07-09-architecture-self-evolution-design.md | 旧自进化设计 | 📜 历史 |
-| specs/2026-07-10-cardframe-v2-test-spec.md | 旧测试规格（含 mock 方案，已弃用） | 📜 历史 |
-| superpowers/plans/2026-07-09-architecture-self-evolution.md | 旧实施计划 | 📜 历史 |
-| superpowers/plans/2026-07-10-cardframe-v2-upgrade.md | 旧升级计划 | 📜 历史 |
+| 文档 | 内容 |
+|------|------|
+| [architecture-overview.md](architecture-overview.md) | 模块结构、数据流、横切能力、进化子系统真实状态 |
+| [CONSTRAINTS.md](CONSTRAINTS.md) | MUST / MUST NOT 硬约束 |
+| [coverage-baseline.md](coverage-baseline.md) | c8 覆盖率基线与 sanitizer 说明 |
 
-## ⚠️ 已知文档债务
+### 扩展与运维
 
-1. **`.d.ts` 与源码脱节风险**：`types/card-framework.d.ts` 由人工维护，可能与实际签名不符（如 `Store.updateCard` 仅接受完整对象、无增量重载）。改 API 时务必同步更新。
-2. **旧文档残留旧架构论断**：凡含"单体 / IIFE / 正则构建 / mock 测试 / 权限无校验"字样的文档均为历史快照，请勿据以判断当前代码。
-3. **进化子系统文档曾严重失实**：旧 `evolution-agent/README.md` 声称的 AI 决策、API Key 验证、60s WebSocket 指标推送，**代码中均不存在**；已据实重写。
+| 文档 | 内容 |
+|------|------|
+| [plugin-development.md](plugin-development.md) | 插件生命周期、沙箱权限、示例 |
+| [agent-guide.md](agent-guide.md) | Agent 操作与偏移防护 |
+| [security.md](security.md) | XSS / CSP / 危险属性 |
+| [backend-integration.md](backend-integration.md) | BackendSync |
+| [deployment.md](deployment.md) | 生产部署注意项 |
+
+### 外部（仓库内）
+
+| 文档 | 内容 |
+|------|------|
+| [../README.md](../README.md) | 项目主页与特性摘要 |
+| [../CHANGELOG.md](../CHANGELOG.md) | 版本变更 |
+| [../evolution-agent/README.md](../evolution-agent/README.md) | 本机进化 Agent（token、dryRun、heuristic） |
+| [../AGENTS.md](../AGENTS.md) / [../Claude.md](../Claude.md) | Agent 硬约束指令 |
+
+---
+
+## 归档（非当前）
+
+见 **[archive/README.md](archive/README.md)**：
+
+- 旧架构审计 / 代码质量评估 / Phase 4 计划
+- 旧 specs 与 superpowers 过程稿
+
+---
+
+## 文档纪律
+
+1. **版本与测试数**以 `package.json` 与 `npm test` 为准；改完代码请同步 README badge 与「测试状态」表。
+2. **内置卡片类型**以 `src/core/defaultCardTypes.js` 为准（当前：abstract `base` + `text` / `task` / `image` / `list` / `progress` / `link` / `note` / `code`）。
+3. **API 变更**须同步 `types/card-framework.d.ts` 与 [api-reference.md](api-reference.md)。
+4. Evolution Agent **不得**再描述为「无鉴权 / CORS *」；写路由需 Bearer token，bind 默认 `127.0.0.1`。
+5. 过时评估与过程计划**只进 archive**，不留在 `docs/` 顶层冒充现行文档。

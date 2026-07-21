@@ -1,3 +1,4 @@
+> **ARCHIVED / 非当前**：本文档为历史材料，结论与行号可能已失效。现行事实见 `docs/architecture-overview.md` 与 `src/`。索引：`docs/archive/README.md`。
 # 自进化（Evolution）子系统重构方案
 
 > 适用范围：仓库内 `src/evolution/*`（浏览器端）与 `evolution-agent/*`（Node 服务）。

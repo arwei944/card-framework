@@ -4,7 +4,6 @@
  */
 
 import { EVENT_TYPES } from '../utils/constants.js';
-import { Utils } from '../utils/Utils.js';
 import { Security } from '../security/Security.js';
 import { FeedbackSystem } from '../utils/FeedbackSystem.js';
 import { PluginSandbox } from './PluginSandbox.js';

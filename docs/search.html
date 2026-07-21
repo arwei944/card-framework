@@ -221,10 +221,13 @@
       <div class="search-stats" id="searchStats"></div>
       
       <div class="doc-list">
+        <a href="README.md" class="doc-link">文档导航</a>
         <a href="getting-started.md" class="doc-link">快速开始</a>
         <a href="api-reference.md" class="doc-link">API 参考</a>
+        <a href="architecture-overview.md" class="doc-link">架构总览</a>
         <a href="plugin-development.md" class="doc-link">插件开发</a>
         <a href="agent-guide.md" class="doc-link">Agent 指南</a>
+        <a href="archive/README.md" class="doc-link">历史归档</a>
       </div>
     </header>
 
@@ -238,10 +241,19 @@
 
   <script>
     const DOC_FILES = [
+      { file: 'README.md', title: '文档导航' },
       { file: 'getting-started.md', title: '快速开始指南' },
       { file: 'api-reference.md', title: 'API 参考手册' },
+      { file: 'architecture-overview.md', title: '架构总览' },
       { file: 'plugin-development.md', title: '插件开发指南' },
-      { file: 'agent-guide.md', title: 'Agent 操作指南' }
+      { file: 'agent-guide.md', title: 'Agent 操作指南' },
+      { file: 'security.md', title: '安全' },
+      { file: 'faq.md', title: 'FAQ' },
+      { file: 'CONSTRAINTS.md', title: '硬约束' },
+      { file: 'best-practices.md', title: '最佳实践' },
+      { file: 'coverage-baseline.md', title: '覆盖率基线' },
+      { file: 'backend-integration.md', title: '后端集成' },
+      { file: 'deployment.md', title: '部署' }
     ];
 
     let docsIndex = [];

@@ -2,9 +2,9 @@
 
 > 以卡片为核心数据单元和 UI 载体的框架无关、Agent 友好的前端框架
 
-[![Test Status](https://img.shields.io/badge/tests-201-brightgreen.svg)](https://github.com/arwei944/card-framework/actions)
+[![Test Status](https://img.shields.io/badge/tests-235-brightgreen.svg)](https://github.com/arwei944/card-framework/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)](CHANGELOG.md)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16.x-green.svg)](package.json)
 [![npm](https://img.shields.io/badge/npm-%3E%3D8.x-red.svg)](package.json)
 [![TypeScript](https://img.shields.io/badge/typescript-supported-blue.svg)](types/card-framework.d.ts)
@@ -18,7 +18,7 @@
 
 ### 核心引擎
 - **声明式 HTML**：通过简洁的 HTML 标签创建卡片，无需编写 JavaScript
-- **21 种卡片类型**：支持文本、图片、链接、清单、自定义等多种卡片类型
+- **内置卡片类型**：`text` / `task` / `image` / `list` / `progress` / `link` / `note` / `code`（另有 abstract `base`），可通过 `registerType` / 插件扩展
 - **类型继承**：卡片类型支持继承机制，便于扩展和复用
 - **事件总线**：完善的事件系统，支持卡片生命周期和自定义事件
 - **画布模式**：自由拖拽、缩放的画布布局模式
@@ -99,12 +99,12 @@ npm install card-framework
 <head>
   <meta charset="UTF-8">
   <title>CardFrame 示例</title>
-  <link rel="stylesheet" href="src/card-framework.css">
+  <link rel="stylesheet" href="dist/card-framework.css">
 </head>
 <body>
   <div id="app"></div>
 
-  <script src="src/card-framework.js"></script>
+  <script src="dist/card-framework.js"></script>
   <script>
     // 初始化框架
     const framework = new CardFrame('#app', {
@@ -123,6 +123,10 @@ npm install card-framework
     framework.on(CardFrame.EVENT_TYPES.CARD_ADDED, (event) => {
       console.log('卡片已添加:', event.detail.card.props.title);
     });
+
+    // 增量更新 + 撤销
+    framework.updateCard(card.id, { content: '已更新' });
+    framework.undo();
 
     // 切换到画布模式
     framework.setLayoutMode('canvas');
@@ -227,12 +231,13 @@ CardFrame 提供了丰富的插件生态，以下是官方示例插件：
 
 | 测试项 | 状态 | 数量 |
 |--------|------|------|
-| 单元测试 + 集成测试 | ✅ 通过（jsdom 真实 DOM） | **201 passing** |
-| 核心引擎 | ✅ 通过 | - |
-| 插件系统 | ✅ 通过 | - |
-| 安全模块（净化/熔断） | ✅ 通过 | - |
+| 单元测试 + 集成测试 | ✅ 通过（jsdom 真实 DOM） | **235 passing** |
+| 核心引擎 | ✅ 通过 | Store / EventBus / CRUD / undo |
+| 插件系统 | ✅ 通过 | 沙箱权限、官方 ESM 插件 |
+| 安全模块（净化/熔断/模板） | ✅ 通过 | Phase 6 + TypeRegistry 门禁 |
+| Guardrail | ✅ 通过 | 运行时 + `npm run guardrail` |
 
-> 测试运行于 jsdom 提供的真实 DOM 环境（非手写 mock）。最新架构审查与文档时效说明见 [docs/README.md](docs/README.md)；当前真实架构见 [docs/architecture-overview.md](docs/architecture-overview.md)。
+> 测试运行于 jsdom 真实 DOM（非手写 mock）。文档导航见 [docs/README.md](docs/README.md)；架构见 [docs/architecture-overview.md](docs/architecture-overview.md)。历史材料见 [docs/archive/](docs/archive/README.md)。
 
 运行测试：
 

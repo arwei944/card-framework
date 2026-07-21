@@ -71,11 +71,14 @@ IIFE 构建产物必须将框架挂载到 `window.CardFrame`。即使新增 ESM 
 
 ### 约束 2.3 `MUST` 卡片类型定义结构兼容
 
-现有 21 种内置卡片类型的 `registerType` 定义结构不得破坏性变更。用户自定义类型的注册方式不变。
+内置可用类型（`text` / `task` / `image` / `list` / `progress` / `link` / `note` / `code`，及 abstract `base`）与用户自定义类型的 `registerType` 定义结构不得破坏性变更。类型数量以 `src/core/defaultCardTypes.js` 为准，不得在文档中夸大为虚构数量。
 
-### 约束 2.4 `SHOULD` Store.updateCard 支持增量更新
+### 约束 2.4 `MUST` updateCard 支持增量更新
 
-`updateCard` 应同时支持 `updateCard(card)` 和 `updateCard(id, partialProps)` 两种签名，以修复评估报告中的"只接受完整对象"缺陷。
+`frame.updateCard` 必须同时支持：
+
+- `updateCard(card)` — 完整卡片对象
+- `updateCard(id, partial)` — 增量：props 字段和/或顶层 `status` / `position` / `style` / `tags`
 
 ---
 

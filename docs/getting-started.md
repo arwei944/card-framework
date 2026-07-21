@@ -30,7 +30,7 @@ CardFrame 的设计理念是**简单、灵活、可扩展**，让开发者可以
 
 ### 🎯 核心功能
 
-- **多种卡片类型**：内置文本卡、任务卡、图片卡、列表卡、进度卡等 6 种基础类型
+- **多种卡片类型**：内置 `text` / `task` / `image` / `list` / `progress` / `link` / `note` / `code`（另有 abstract `base`），可用 `registerType` 扩展
 - **类型继承体系**：支持类型继承，可基于现有类型扩展新类型
 - **声明式 HTML**：使用 `<cf-card>` 标签直接在 HTML 中定义卡片
 - **完整 JS API**：提供 CRUD、批量操作、事件监听等完整 API
@@ -76,31 +76,33 @@ CardFrame 的设计理念是**简单、灵活、可扩展**，让开发者可以
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CardFrame 示例</title>
-  <link rel="stylesheet" href="path/to/card-framework.css">
+  <link rel="stylesheet" href="dist/card-framework.css">
 </head>
 <body>
   <div id="cardContainer"></div>
-  <script src="path/to/card-framework.js"></script>
+  <script src="dist/card-framework.js"></script>
 </body>
 </html>
 ```
 
 ### 创建第一个卡片
 
-使用 `CardFrame.from()` 方法快速初始化一个卡片框架实例：
+使用 `CardFrame.from()` 或 `new CardFrame()` 初始化：
 
 ```html
 <div id="cardContainer"></div>
 
 <script>
-  // 初始化 CardFrame
   const frame = CardFrame.from('#cardContainer');
 
-  // 创建一张文本卡
   const card = frame.createCard('text', {
     title: '我的第一张卡片',
     content: 'Hello, CardFrame!'
   });
+
+  // 增量更新 + 撤销
+  frame.updateCard(card.id, { content: '已更新' });
+  frame.undo();
 
   console.log('创建的卡片:', card);
 </script>
@@ -149,6 +151,9 @@ CardFrame 支持使用 `<cf-card>` 自定义元素直接在 HTML 中声明卡片
 | `image` | 图片卡 | `title`, `src`, `alt`, `caption` |
 | `list` | 列表卡 | `title`, `items` |
 | `progress` | 进度卡 | `title`, `value`, `max`, `unit` |
+| `link` | 链接卡 | `title`, `url`, `description` |
+| `note` | 笔记卡 | `title`, `content`, `color` |
+| `code` | 代码卡 | `title`, `language`, `code` |
 
 ### 使用 JS API
 
@@ -168,9 +173,8 @@ const taskCard = frame.createCard('task', {
 const card = frame.getCard(taskCard.id);
 console.log('卡片标题:', card.props.title);
 
-// 更新卡片
-card.props.title = '深入学习 CardFrame';
-frame.updateCard(card);
+// 更新卡片（完整对象或增量）
+frame.updateCard(taskCard.id, { title: '深入学习 CardFrame' });
 
 // 获取所有卡片
 const allCards = frame.getAllCards();

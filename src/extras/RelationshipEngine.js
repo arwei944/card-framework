@@ -290,7 +290,6 @@ export class RelationshipEngine {
 
     if (rel.type) {
       const labelText = rel.type;
-      const labelPadding = 6;
       const labelWidth = Math.max(labelText.length * 7, 30);
       const labelHeight = 16;
 

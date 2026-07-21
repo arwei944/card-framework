@@ -75,6 +75,9 @@ CardFrame 内置以下卡片类型（通过 `type` 属性指定）：
 | `image` | 图片卡片 | `src`, `alt`, `caption` |
 | `list` | 清单卡片 | `title`, `items` |
 | `progress` | 进度卡片 | `value`, `max`, `unit` |
+| `link` | 链接卡片 | `title`, `url`, `description` |
+| `note` | 笔记卡片 | `title`, `content`, `color` |
+| `code` | 代码卡片 | `title`, `language`, `code` |
 
 ## 三种接入方式
 

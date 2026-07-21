@@ -16,15 +16,20 @@
   - 可配置严重性级别（error/warn/info）和 `onViolation` 回调；通过 `options.guardrail` 配置，默认启用
 - **构建时检查脚本** `scripts/guardrail-check.js`：CI 集成，扫描 HTML/JS 中的逃逸用法
 - **Agent 指令文件**：`AGENTS.md` / `.cursorrules` / `CLAUDE.md`，三套 AI Agent 提示层指令
+- 内置类型扩展：`link` / `note` / `code`；Store 公开 `rekeyCard` / `destroy`；增量 `updateCard(id, partial)`；类型模板安全门禁
+- 官方 `plugins/task-manager` ESM + `permissions` 示例
 
 ### 改进
-- `package.json` 新增 `guardrail` 和 `ci` 脚本
-- 测试数 201 → 218（新增 17 个 Guardrail 测试）
+- `package.json` 新增 `guardrail` 和 `ci` 脚本；补充 `author` / `repository` 元数据
+- 测试数 **235 passing**（含 undo、auth、模板安全、smoke、插件权限等）
+- Evolution Agent：无 token 时写路由 401；能力声明 `mode: heuristic|llm`；文档与代码对齐
+- **文档整理**：现行文档对齐 v1.2 事实；过时审计/specs/superpowers 迁入 `docs/archive/`
 
 ### 升级指南
 - Guardrail 默认启用。遇到误报可通过 `new CardFrame(el, { guardrail: false })` 关闭
 - 在 CI 中运行 `npm run guardrail` 检查逃逸用法
 - 将 `AGENTS.md` 放在项目根目录，AI Agent 会自动读取硬约束指令
+- 推荐使用 `frame.updateCard(id, partial)` 做增量更新；自定义类型模板勿含 script/内联事件
 
 ## [v1.1.0] - 商用化加固 - 2026-07-13
 

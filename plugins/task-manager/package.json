@@ -1,0 +1,8 @@
+{
+  "name": "cardframe-plugin-task-manager",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "description": "Official CardFrame task-manager plugin (ESM + permissions)"
+}

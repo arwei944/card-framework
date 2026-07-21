@@ -278,7 +278,7 @@ const card = frame.getCard('card_id');
 if (card) {
   card.props.title = '更新后的标题';
   card.props.priority = 'low';
-  frame.updateCard(card);
+  frame.updateCard(card.id, { title: card.props.title }); // 增量更新
 }
 ```
 
@@ -549,9 +549,12 @@ const stats = frame.guardrail.getStats();
 
 ## 自进化 API
 
-CardFrame 内置浏览器端自进化子系统，由 `MetricsCollector` / `RuleEngine` / `EvolutionEngine` / `ActionLogger` 四个模块协作，Agent 可通过以下 API 介入。
+CardFrame 内置浏览器端自进化子系统，由 `MetricsCollector` / `RuleEngine` / `EvolutionEngine` / `ActionLogger` 协作。
 
-> **注意**：自进化子系统仍属**实验性、未 production-ready**。指标与进化历史默认仅存内存（刷新即丢），可通过 `localStorage` 持久化。生产使用需配合独立的 Evolution Agent 服务（见 `evolution-agent/`）。
+> **注意（v1.2+）**：  
+> - **默认关闭**——需 `new CardFrame(el, { evolution: true })` 或 `evolution: { agentEndpoint: '...' }` 显式开启。  
+> - 仍属**实验性、未 production-ready**。进化历史可写入 `localStorage`（key: `cardframe.evolution.history`）。  
+> - 代码级进化需本机 Evolution Agent（`evolution-agent/`）：写路由要求 Bearer token，默认 `dryRun` + heuristic。
 
 ### 指标采集
 
@@ -755,7 +758,7 @@ console.log('属性定义:', propSchema);
 // 2. 确保调用了 updateCard
 const card = frame.getCard(id);
 card.props.title = '新标题';
-frame.updateCard(card); // 必须调用！
+frame.updateCard(card.id, { ...card.props }); // 必须通过 API 写回
 ```
 
 ### Q3: DOM 操作后 Store 没有同步？

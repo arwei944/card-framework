@@ -12,18 +12,51 @@ export class TypeRegistry {
     this.types = new Map();
   }
 
-  register(typeDef) {
+  /**
+   * Register a card type definition.
+   * @param {Object} typeDef
+   * @param {Object} [options]
+   * @param {boolean} [options.allowUnsafeTemplates=false] - allow templates that fail security checks
+   * @returns {boolean}
+   */
+  register(typeDef, options = {}) {
+    if (!typeDef || !typeDef.type) {
+      FeedbackSystem.warn('类型定义缺少 type 字段');
+      return false;
+    }
     if (this.types.has(typeDef.type)) {
       FeedbackSystem.warn(`类型 "${typeDef.type}" 已存在`);
       return false;
     }
+
+    const allowUnsafe = options.allowUnsafeTemplates === true || typeDef.allowUnsafeTemplates === true;
+    if (!allowUnsafe && typeDef.renderTemplate) {
+      const securityResult = Security.checkTemplateSecurity(typeDef.renderTemplate);
+      if (!securityResult.safe) {
+        const summary = (securityResult.issues || []).map(i => i.message).join('; ');
+        FeedbackSystem.error(
+          `类型 "${typeDef.type}" 模板未通过安全检查，已拒绝注册`,
+          summary || 'unsafe template',
+          '如确认安全可传入 register(typeDef, { allowUnsafeTemplates: true })'
+        );
+        return false;
+      }
+    }
+
     const finalTypeDef = this.resolveInheritance(typeDef);
     this.types.set(typeDef.type, finalTypeDef);
     return true;
   }
 
-  resolveInheritance(typeDef) {
+  resolveInheritance(typeDef, _chain = new Set()) {
     if (!typeDef.extends) return { ...typeDef };
+
+    // 环检测：如果当前类型已在继承链中出现，说明存在循环继承
+    if (_chain.has(typeDef.type)) {
+      const cyclePath = [..._chain, typeDef.type].join(' → ');
+      throw new Error(`检测到循环继承: ${cyclePath}`);
+    }
+    _chain.add(typeDef.type);
 
     const parentDef = this.get(typeDef.extends);
     if (!parentDef) {
@@ -31,7 +64,7 @@ export class TypeRegistry {
       return { ...typeDef };
     }
 
-    const resolvedParent = this.resolveInheritance(parentDef);
+    const resolvedParent = this.resolveInheritance(parentDef, _chain);
     const mergedProps = [...resolvedParent.propsSchema];
 
     typeDef.propsSchema.forEach(prop => {

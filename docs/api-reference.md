@@ -105,23 +105,48 @@ const card = frame.createCard('text', {
 
 ---
 
-#### updateCard(card)
+#### updateCard(cardOrId, partial?)
 
-更新卡片。
+更新卡片。支持两种调用方式：
 
 ```javascript
+// 1) 完整卡片对象（兼容旧用法）
 const card = frame.getCard(cardId);
 card.props.title = '新标题';
 frame.updateCard(card);
+
+// 2) 增量更新（推荐）：id + props / 顶层字段
+frame.updateCard(cardId, { title: '新标题', content: '新内容' });
+frame.updateCard(cardId, { status: 'completed' }); // 顶层 status / position / style / tags
 ```
 
 **参数：**
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `card` | `object` | 完整的卡片对象 |
+| `cardOrId` | `object \| string` | 完整卡片对象，或卡片 id |
+| `partial` | `object` | 可选。当第一参数为 id 时：合并进 `props` 的字段，或含 `status` / `position` / `style` / `tags` / `props` |
 
 **返回值：** `object|null` - 更新后的卡片对象，失败返回 null
+
+写操作会进入 `ActionLogger`；`undo()` / `redo()` 对 `updateCard` 通过 `Store.updateCardProps` 恢复 props。
+
+---
+
+#### registerType(typeDef, options?)
+
+注册自定义卡片类型（委托 `TypeRegistry.register`）。
+
+```javascript
+frame.registerType({
+  type: 'quote',
+  extends: 'base',
+  propsSchema: [{ name: 'text', type: 'string' }],
+  renderTemplate: '<div class="card"><p>{{text}}</p></div>'
+});
+// 危险模板（script / on* / javascript: 等）默认拒绝；显式放行：
+// frame.registerType(typeDef, { allowUnsafeTemplates: true });
+```
 
 ---
 
@@ -899,9 +924,11 @@ const perf = CardFrame.getPerfStats();
 | `CardFrame.ShadowCardRegistry` | `class` | ShadowCardRegistry 类（影子卡片注册） |
 | `CardFrame.CardElement` | `class` | `<cf-card>` 自定义元素类 |
 | `CardFrame.CardFrameElement` | `class` | `<card-frame>` 自定义元素类 |
-| `CardFrame.VERSION` | `string` | 框架版本号（getter，如 `'1.1.0'`） |
+| `CardFrame.VERSION` | `string` | 框架版本号（getter，当前 **`'1.2.0'`**） |
+| `CardFrame.Guardrail` | `class` | Guardrail 硬约束类 |
 
-> ✅ **v1.1.0 起**：每个 `CardFrame` 实例完全拥有自己的子系统（`store` / `typeRegistry` / `renderer` / `autoFixer` / `realTimeValidator` / `shadowCardRegistry`），通过实例属性访问（如 `frame.store`）。框架不再创建任何全局单例，多实例之间互不影响。
+> 自 **v1.1.0** 起：每个实例拥有自己的子系统（`frame.store` 等），无全局单例。  
+> **v1.2.0**：Guardrail 默认启用；Store 公开 `rekeyCard` / `destroy`；增量 `updateCard`；类型注册模板安全门禁。
 
 ---
 
@@ -912,13 +939,22 @@ const perf = CardFrame.getPerfStats();
 ### 方法
 
 #### addCard(card)
-添加卡片，触发 `CARD_ADDED` 事件。
+添加卡片。若缺少 `id` 会自动生成。触发 `CARD_ADDED` 事件。
 
 #### updateCard(card)
-更新卡片，触发 `CARD_UPDATED` 事件。
+用完整卡片对象更新，触发 `CARD_UPDATED` 事件。
 
-#### updateCardProps(id, props)
-更新卡片属性。
+#### updateCardProps(id, propsOrPartial)
+按 id 合并 props；`propsOrPartial` 也可含顶层 `status` / `position` / `style` / `tags`，或嵌套 `{ props: {...} }`。
+
+#### rekeyCard(oldId, card)
+在不走 remove+add 的前提下更换卡片 id（公开 API）。
+
+#### setPool(pool)
+注入卡片对象池。
+
+#### destroy()
+清理定时器、卡片、关系、索引与对象池引用。由 `CardFrame.destroy()` 调用。
 
 #### removeCard(id)
 删除卡片（同时删除相关关系），触发 `CARD_REMOVED` 事件。
@@ -979,8 +1015,9 @@ const perf = CardFrame.getPerfStats();
 
 ### 方法
 
-#### register(typeDef)
-注册卡片类型。
+#### register(typeDef, options?)
+注册卡片类型。默认对 `renderTemplate` 运行 `Security.checkTemplateSecurity`；不安全则返回 `false` 且不注册。  
+`options.allowUnsafeTemplates === true`（或 typeDef 上同名字段）可显式放行。
 
 **typeDef 结构：**
 ```javascript
@@ -1975,6 +2012,27 @@ npm run guardrail -- src examples    # 扫描指定目录
 | `max` | `number` | 最大值 |
 | `unit` | `string` | 单位 |
 
+#### link 类型属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `url` | `string` | 链接地址 |
+| `description` | `string` | 描述 |
+
+#### note 类型属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `content` | `string` | 笔记内容 |
+| `color` | `string` | 颜色标记 |
+
+#### code 类型属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `language` | `string` | 语言标识 |
+| `code` | `string` | 代码正文 |
+
 #### data-* 属性
 
 所有 `data-*` 属性都会被解析为卡片属性。
@@ -2011,7 +2069,7 @@ npm run guardrail -- src examples    # 扫描指定目录
 
 ## 自进化系统 (EvolutionEngine / MetricsCollector / RuleEngine)
 
-CardFrame v1.0 内置自进化系统，可在运行时自动采集性能指标、评估优化规则并执行参数调优。
+CardFrame 内置**可选**自进化子系统（`options.evolution` 显式开启；**默认关闭**）。开启后可采集性能指标、评估规则并做浏览器内参数调优，或请求本机 Evolution Agent。详见 `evolution-agent/README.md`。
 
 ### EvolutionEngine 类
 

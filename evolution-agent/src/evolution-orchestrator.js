@@ -23,10 +23,12 @@ EvolutionOrchestrator.prototype.getCapabilities = function() {
   return {
     llm: this._llmAvailable,
     heuristic: true,
+    mode: this._llmAvailable ? 'llm' : 'heuristic',
     dryRun: !!this.config.dryRun,
     requireReview: this.config.requireReview !== false,
     allowedWritePaths: this.config.allowedWritePaths || [],
-    bind: this.config.bind || '127.0.0.1'
+    bind: this.config.bind || '127.0.0.1',
+    authRequired: true
   };
 };
 

@@ -156,7 +156,12 @@ export class ActionLogger {
           break;
         case 'updateCard':
           if (action.cardId && action.previousState) {
-            store.updateCard(action.cardId, action.previousState);
+            // previousState is a props snapshot (see CardFrame.updateCard)
+            if (typeof store.updateCardProps === 'function') {
+              store.updateCardProps(action.cardId, action.previousState);
+            } else if (typeof action.previousState === 'object' && action.previousState.id) {
+              store.updateCard(action.previousState);
+            }
           }
           break;
         case 'removeCard':
@@ -192,7 +197,11 @@ export class ActionLogger {
           break;
         case 'updateCard':
           if (action.cardId && action.newState) {
-            store.updateCard(action.cardId, action.newState);
+            if (typeof store.updateCardProps === 'function') {
+              store.updateCardProps(action.cardId, action.newState);
+            } else if (typeof action.newState === 'object' && action.newState.id) {
+              store.updateCard(action.newState);
+            }
           }
           break;
         case 'removeCard':

@@ -215,7 +215,9 @@ export interface UtilsStatic {
 export interface Store {
   addCard(card: Card): Card;
   updateCard(card: Card): Card | null;
-  updateCardProps(cardId: string, props: Record<string, any>): Card | null;
+  updateCardProps(id: string, propsOrPartial: Record<string, any>): Card | null;
+  rekeyCard(oldId: string, card: Card): Card | null;
+  destroy(): void;
   removeCard(cardId: string): boolean;
   getCard(cardId: string): Card | undefined;
   getAllCards(): Card[];
@@ -242,7 +244,7 @@ export interface Store {
 }
 
 export interface TypeRegistry {
-  register(typeDef: CardTypeDefinition): void;
+  register(typeDef: CardTypeDefinition, options?: { allowUnsafeTemplates?: boolean }): boolean;
   unregister(typeName: string): void;
   get(typeName: string): CardTypeDefinition | undefined;
   getAll(): CardTypeDefinition[];
@@ -800,7 +802,10 @@ export interface BatchResult {
 export interface CardFrameInstance {
   // 卡片操作
   createCard(type: string, props?: Record<string, any>): Card | null;
+  /** Full card object, or (id, partial) incremental update */
   updateCard(card: Card): Card | null;
+  updateCard(id: string, partial: Record<string, any>): Card | null;
+  registerType(typeDef: CardTypeDefinition, options?: { allowUnsafeTemplates?: boolean }): boolean;
   removeCard(cardId: string): boolean;
   getCard(cardId: string): Card | undefined;
   getAllCards(): Card[];

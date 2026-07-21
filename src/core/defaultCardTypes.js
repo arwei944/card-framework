@@ -173,5 +173,74 @@ export const defaultCardTypes = [
       </div>
     `,
     defaultStyle: {}
+  },
+  {
+    type: 'link',
+    label: '链接卡',
+    icon: '🔗',
+    description: '用于展示外链',
+    extends: 'base',
+    propsSchema: [
+      { name: 'url', type: 'url', required: true, label: '链接地址' },
+      { name: 'description', type: 'string', required: false, label: '描述' }
+    ],
+    renderTemplate: `
+      <div class="card card-link">
+        <div class="card-header">
+          <span class="card-icon">{{icon}}</span>
+          <h3 class="card-title">{{title}}</h3>
+        </div>
+        <div class="card-body">
+          <a class="card-link-url" href="{{url}}" target="_blank" rel="noopener noreferrer">{{url}}</a>
+          <p class="card-link-desc">{{description}}</p>
+        </div>
+      </div>
+    `,
+    defaultStyle: {}
+  },
+  {
+    type: 'note',
+    label: '笔记卡',
+    icon: '🗒️',
+    description: '简短笔记',
+    extends: 'base',
+    propsSchema: [
+      { name: 'content', type: 'string', required: false, label: '笔记内容' },
+      { name: 'color', type: 'string', required: false, label: '颜色标记', defaultValue: 'default' }
+    ],
+    renderTemplate: `
+      <div class="card card-note card-note-{{color}}">
+        <div class="card-header">
+          <span class="card-icon">{{icon}}</span>
+          <h3 class="card-title">{{title}}</h3>
+        </div>
+        <div class="card-body card-note-content">{{content}}</div>
+      </div>
+    `,
+    defaultStyle: {}
+  },
+  {
+    type: 'code',
+    label: '代码卡',
+    icon: '💻',
+    description: '展示代码片段',
+    extends: 'base',
+    propsSchema: [
+      { name: 'language', type: 'string', required: false, label: '语言', defaultValue: 'text' },
+      { name: 'code', type: 'string', required: false, label: '代码' }
+    ],
+    renderTemplate: `
+      <div class="card card-code">
+        <div class="card-header">
+          <span class="card-icon">{{icon}}</span>
+          <h3 class="card-title">{{title}}</h3>
+          <span class="card-code-lang">{{language}}</span>
+        </div>
+        <div class="card-body">
+          <pre class="card-code-block"><code>{{code}}</code></pre>
+        </div>
+      </div>
+    `,
+    defaultStyle: {}
   }
 ];

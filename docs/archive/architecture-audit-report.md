@@ -1,3 +1,4 @@
+> **ARCHIVED / 非当前**：本文档为历史材料，结论与行号可能已失效。现行事实见 `docs/architecture-overview.md` 与 `src/`。索引：`docs/archive/README.md`。
 
 > ⛔ **DEPRECATED · 历史快照（重构前）**
 > 本文件描述的是 **Phase 4 模块化重构之前** 的 CardFrame 状态（单体 IIFE + 正则构建 + mock 测试 + 权限无校验）。

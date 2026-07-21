@@ -1,43 +1,44 @@
 # CardFrame 架构总览（当前版本）
 
-> **适用范围**：本文档描述当前代码库的真实架构（ES Module 源码 + esbuild 构建 + jsdom 测试）。
-> 若你在找"单体 IIFE + 正则构建"时期的架构说明，那是 **Phase 4 重构之前** 的历史状态，见 `docs/architecture-audit-report.md`（已标记 DEPRECATED）及各 `docs/specs`、`docs/superpowers/plans` 下的历史规划记录。**以本文档与源码为准。**
+> **适用范围**：描述当前代码库真实架构（ES Module + esbuild + jsdom 测试）。版本以 `package.json` 为准（**v1.2.0**）。  
+> 历史审计 / 旧 specs / Phase 4 计划见 [`archive/`](archive/README.md)。**以本文档与 `src/` 为准。**
 
 ---
 
 ## 1. 整体架构
 
-CardFrame 是一个**框架无关、零运行时依赖**的卡片前端框架。当前源码已是**真正的 ES Module 模块化结构**：每个类/模块一个文件，依赖通过 `import` 显式声明，由 esbuild 打包为多格式产物。
+CardFrame 是一个**框架无关、零运行时依赖**的卡片前端框架。源码为 ES Module 模块化结构：每个类/模块一个文件，依赖通过 `import` 声明，由 esbuild 打包为多格式产物。
 
 ```
 src/
-├── index.js                  # ES Module 入口：聚合全部模块、挂载到 CardFrame、注册 customElements
-├── core/                    # 核心域
-│   ├── CardFrame.js         #   编排者：构造时通过构造函数注入组装所有子系统
-│   ├── EventBus.js         #   发布/订阅事件总线（每实例独立）
-│   ├── Store.js            #   内存数据中心（Map + QueryIndex 索引 + 快照缓存）
-│   ├── TypeRegistry.js     #   卡片类型注册/继承/校验
-│   ├── DataIO.js           #   导入/导出 + 版本迁移
-│   ├── StatsService.js     #   运行时统计
-│   └── defaultCardTypes.js
-├── security/               # Security（allowlist 净化 + mXSS 多轮稳定化 + URL/style 过滤）、CircuitBreaker
-├── render/                 # Renderer（rAF 增量渲染）、LayoutEngine、VirtualScroller
-├── validation/             # AutoFixer、RealTimeValidator
-├── extras/                 # ThemeManager、I18nManager、RelationshipEngine
-├── plugins/                # PluginManager（生命周期/hook/权限）、PluginSandbox（运行时权限裁剪 + 资源追踪）
-├── perf/                   # Perf、CardObjectPool、LayoutCache、QueryIndex
-├── evolution/              # 浏览器端进化：MetricsCollector、RuleEngine、EvolutionEngine、ActionLogger…
-├── web-components/         # <card-frame>、<cf-card>、ShadowCardElement
-└── utils/                 # Utils、FeedbackSystem、constants、escape
+├── index.js                  # ES Module 入口：聚合模块、挂载 CardFrame、注册 customElements
+├── core/
+│   ├── CardFrame.js          # 编排者（CRUD / 插件 / 布局门面）
+│   ├── cardframe/            # 从主类拆出的 mixin：batch / relationships / lifecycle
+│   ├── EventBus.js
+│   ├── Store.js              # Map + QueryIndex + 快照；公开 setPool / rekeyCard / destroy
+│   ├── TypeRegistry.js       # 注册时默认拒绝不安全 renderTemplate
+│   ├── DataIO.js
+│   ├── StatsService.js
+│   └── defaultCardTypes.js   # base + text/task/image/list/progress/link/note/code
+├── security/                 # Security sanitizer、CircuitBreaker
+├── render/                   # Renderer、LayoutEngine、VirtualScroller
+├── validation/               # AutoFixer、RealTimeValidator
+├── extras/                   # Theme、I18n、Relationship、BackendSync、Monitor
+├── plugins/                  # PluginManager、PluginSandbox
+├── perf/
+├── evolution/                # 浏览器端指标/规则/进化（默认关闭）
+├── guardrail/                # Agent 硬约束（R1–R4）
+├── web-components/
+└── utils/
 ```
 
-**关键设计事实（基于代码）**
-- **每实例独立**：`new CardFrame(container)` 在 `_initModules()` 中 `new` 出自己的 `EventBus` 及全部子系统；模块间通过构造函数参数注入，无模块级单例耦合。
-- **零运行时依赖**：`package.json` 运行时依赖为空，仅 devDependencies（esbuild/eslint/mocha/jsdom/c8）。
-- **三格式产物**：IIFE（`<script>` 直引 + `window.CardFrame`）、ESM（bundler/`<script type=module>`）、CJS（Node require），各自含 minified + sourcemap。
-- **类型声明**：`types/card-framework.d.ts` 由构建拷贝到 `dist/`；与源码的同步由人工维护（见风险清单，存在脱节风险）。
-
-> ✅ **v1.1.0 已清理**：早期 `src/index.js` 创建过 5 个全局静态单例（`CardFrame.store` / `.typeRegistry` / `.renderer` / `.autoFixer` / `.realTimeValidator`），v1.1.0 已删除——每个 `CardFrame` 实例现在完全拥有自己的子系统，无全局可变状态残留。
+**关键设计事实**
+- **每实例独立**：`new CardFrame(container)` 在 `_initModules()` 中组装全部子系统；无全局 `CardFrame.store` 等单例（自 v1.1.0 起）。
+- **零运行时依赖**：仅 `devDependencies`（esbuild / eslint / mocha / jsdom / c8）。
+- **三格式产物**：IIFE / ESM / CJS（含 min + sourcemap）+ CSS + `.d.ts`。
+- **公开 Store API**：对象池注入走 `setPool`，改 ID 走 `rekeyCard`，销毁走 `store.destroy()`——框架自身不穿透 `store._*`。
+- **类型声明**：`types/card-framework.d.ts` 构建时拷贝到 `dist/`，需与源码人工同步。
 
 ---
 
@@ -76,8 +77,8 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 
 | 关注点 | 实现 | 状态 |
 |--------|------|------|
-| 测试 | jsdom 真实 DOM + Mocha，**201 passing** | ✅ 真实行为验证 |
-| 静态检查 | ESLint，`src scripts`，0 error / 3 warning | ✅ 干净 |
+| 测试 | jsdom 真实 DOM + Mocha（`npm test`，约 **235** cases） | ✅ 真实行为验证 |
+| 静态检查 | ESLint `src scripts`，0 error / 0 warning | ✅ 干净 |
 | 安全（XSS） | `Security` allowlist 净化 + 多轮稳定化 + URL/style 过滤 | ✅ 自述非 DOMPurify 替代 |
 | 安全（权限） | `PluginSandbox` **运行时**按 `can(permission)` 裁剪 API 面 | ✅ 真实执行 |
 | 容错 | `CircuitBreaker`（per-card + global 双层，half-open 单探针） | ✅ |
@@ -100,23 +101,22 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 - `agentSyncInterval`（默认 60s）已实现：`_startAgentSync()` 定时通过 XHR POST `/api/metrics` + WebSocket `metrics-report` 向 Agent 推送指标。
 - WebSocket 连接用于接收 Agent 推送的 `evolution-result` 消息（非空转）。
 
-**B. 独立 Node 服务（`evolution-agent/`）—— 已按 `docs/evolution-refactoring-plan.md` 重构**
+**B. 独立 Node 服务（`evolution-agent/`）**
 - HTTP :9100 + 可选 WebSocket（`ws` 为**可选依赖**，缺失时降级），默认绑定 `127.0.0.1`。
-- **鉴权**：除 `/api/health` 外要求 `Bearer` 令牌（取自 `tokenEnv` 环境变量）；CORS 由 `allowedOrigins` 白名单控制（**不再 `*`**）。
-- **写路径白名单**（`allowedWritePaths`，默认仅 `src/core/CardFrame.js`）：越界/越权写入被拒。
-- `POST /api/evolve`：快照 → 生成**结构化 patch**（LLM tool-calling 或启发式）→ 应用（唯一性校验）→ 跑 `npm test`（JSON reporter 结构化判定）→ 通过则提交 `evolution` 分支（dryRun 则回退），失败则回滚（git + 直接还原被改文件，不依赖 git）。
-- **能力诚实**：`capabilities` 如实声明 LLM/启发式/dryRun/白名单；默认无 LLM Key 时走启发式 key-value 参数调优。
-- 指标打通：浏览器端 `agentSyncInterval` 已启用，周期 `POST /api/metrics` + WS `metrics-report`；浏览器进化历史持久化到 `localStorage`。
-- 合并受 review 令牌保护（`/api/merge`）；`dryRun` 不提交。
+- **鉴权**：除 `/api/health` 外，写/变更路由要求已配置的 `Bearer` 令牌；**未配置 token 时返回 401**（可用 `ALLOW_INSECURE_AUTH=1` 仅供本机测试）。CORS 由 `allowedOrigins` 白名单控制（**不是 `*`**）。
+- **写路径白名单**（`allowedWritePaths`，默认仅 `src/core/CardFrame.js`）：越界写入被拒。
+- `POST /api/evolve`：快照 → 结构化 patch（可选 LLM，默认 **heuristic**）→ 测试门禁 → `dryRun` 默认 true 则回退不提交。
+- **能力诚实**：`/api/health` 的 `capabilities.mode` 为 `heuristic` 或 `llm`；无 LLM Key 时明确 heuristic。
+- 浏览器进化历史可持久化到 `localStorage`；合并需 review 令牌。
 
-> 该子系统仍属**实验性、仅本机开发使用**；生产/暴露网络前须正确配置 token 与 review 令牌。详细实施状态见 `docs/evolution-refactoring-plan.md`。
+> 实验性、仅本机开发。详见 `evolution-agent/README.md`。历史规划见 `docs/archive/`。
 
 ---
 
 ## 5. 构建与发布
 
 - `scripts/build.js`（esbuild）：输出 IIFE / ESM / CJS 三套（各自含 min + sourcemap），并拷贝 CSS 与 `.d.ts`。
-- CI（`.github/workflows/ci.yml`）：ubuntu 上对 Node 16/18/20 跑 `test` / `lint`+`coverage` / `build`，tag 触发 GitHub Release 上传 `dist/`。
+- CI（`.github/workflows/ci.yml`）：ubuntu 上 Node **20 / 22** 跑 `lint` → `guardrail` → `build` → `test`。
 - 发包：`files` 含 `dist/ src/ types/`，`main`→CJS，`module`→ESM，`browser`→IIFE，`types`→`.d.ts`。
 
 ---
@@ -124,5 +124,5 @@ API 调用 / 插件 Hook / DOM 事件 / 定时器
 ## 6. 健康度与风险摘要
 
 - **核心框架：良好（Good）**——模块化、DI、真实测试、lint 干净、安全与容错内建。
-- **进化子系统：需改进 / 高风险**——无鉴权、无 LLM、路径脱节、历史不可持久。
-- 完整逐维度审查与风险清单见架构审查报告（仓库内 `docs/architecture-audit-report.md` 为**重构前**历史快照，结论已不适用当前代码）。
+- **进化子系统：实验性**——本机 bind、token 必填（写路径）、默认 dryRun + heuristic；**非 production-ready**。
+- 历史审查/评估文档已移至 [`docs/archive/`](archive/README.md)，结论不代表当前代码。

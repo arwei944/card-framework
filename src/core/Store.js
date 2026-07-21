@@ -84,19 +84,25 @@ export class Store {
 
   addCard(card) {
     const newCard = Utils.deepClone(card);
+    if (!newCard.id) {
+      newCard.id = Utils.generateId('card');
+    }
     newCard.updatedAt = Date.now();
+    if (!newCard.createdAt) {
+      newCard.createdAt = Date.now();
+    }
     if (!newCard.position) {
       newCard.position = { x: 0, y: 0 };
     }
     if (this._pool && newCard.type && !this.cards.has(newCard.id)) {
       const pooled = this._pool.acquire(newCard.type);
       if (pooled) {
-        pooled.id = newCard.id || Utils.generateId('card');
+        pooled.id = newCard.id;
         pooled.type = newCard.type;
         pooled.props = { ...newCard.props };
         pooled.position = newCard.position || { x: 0, y: 0 };
         pooled.status = newCard.status || 'active';
-        pooled.createdAt = Date.now();
+        pooled.createdAt = newCard.createdAt || Date.now();
         pooled.updatedAt = Date.now();
         this.cards.set(pooled.id, pooled);
         this._index.add(pooled);
@@ -115,7 +121,7 @@ export class Store {
   }
 
   updateCard(card) {
-    if (!this.cards.has(card.id)) return null;
+    if (!card || !card.id || !this.cards.has(card.id)) return null;
     const updatedCard = Utils.deepClone(card);
     updatedCard.updatedAt = Date.now();
     this.cards.set(updatedCard.id, updatedCard);
@@ -126,10 +132,33 @@ export class Store {
     return updatedCard;
   }
 
-  updateCardProps(id, props) {
+  /**
+   * Merge props (and optional top-level fields) onto an existing card.
+   * @param {string} id
+   * @param {Object} propsOrPartial - props map, or { props, status, position, style, ... }
+   */
+  updateCardProps(id, propsOrPartial) {
     const card = this.getCard(id);
     if (!card) return null;
-    card.props = { ...card.props, ...props };
+    const partial = propsOrPartial || {};
+    const TOP_LEVEL = new Set(['status', 'position', 'style', 'tags', 'type']);
+    if (partial.props && typeof partial.props === 'object' && !Array.isArray(partial.props)) {
+      card.props = { ...card.props, ...partial.props };
+      if (partial.status !== undefined) card.status = partial.status;
+      if (partial.position !== undefined) card.position = partial.position;
+      if (partial.style !== undefined) card.style = partial.style;
+      if (partial.tags !== undefined) card.tags = partial.tags;
+    } else {
+      const propPatch = {};
+      for (const key of Object.keys(partial)) {
+        if (TOP_LEVEL.has(key)) {
+          card[key] = partial[key];
+        } else if (key !== 'id' && key !== 'createdAt' && key !== 'updatedAt') {
+          propPatch[key] = partial[key];
+        }
+      }
+      card.props = { ...card.props, ...propPatch };
+    }
     return this.updateCard(card);
   }
 
@@ -263,6 +292,52 @@ export class Store {
     return this.getAllRelationships().filter(rel => rel.type === type);
   }
 
+  /**
+   * Re-key a card in the Store (change its ID) without remove+add.
+   * @param {string} oldId
+   * @param {Object} card - card object with the new id already set
+   */
+  rekeyCard(oldId, card) {
+    if (!this.cards.has(oldId)) return null;
+    this.cards.delete(oldId);
+    this._index.remove(oldId);
+    this._invalidateSnapshot(oldId);
+    const newCard = Utils.deepClone(card);
+    if (!newCard.id) newCard.id = Utils.generateId('card');
+    newCard.updatedAt = Date.now();
+    this.cards.set(newCard.id, newCard);
+    this._index.add(newCard);
+    this._invalidateSnapshot(newCard.id);
+    this.notify();
+    this._emit(EVENT_TYPES.CARD_UPDATED, { card: newCard, rekeyed: true, oldId });
+    return newCard;
+  }
+
+  /** @deprecated Use rekeyCard */
+  _rekeyCard(oldId, card) {
+    return this.rekeyCard(oldId, card);
+  }
+
+  /**
+   * Cancel pending notify timers, clear cards/relationships/indexes, drop pool.
+   * Used by CardFrame.destroy() without touching private fields.
+   */
+  destroy() {
+    if (this._notifyTimer) {
+      clearTimeout(this._notifyTimer);
+      this._notifyTimer = null;
+    }
+    this.listeners.clear();
+    this.cards.clear();
+    this.relationships.clear();
+    if (this._relIndex) this._relIndex.clear();
+    if (this._index && typeof this._index.clear === 'function') {
+      this._index.clear();
+    }
+    if (this._snapshotCache) this._snapshotCache.clear();
+    this._pool = null;
+  }
+
   subscribe(listener) {
     if (typeof listener !== 'function') {
       throw new Error('订阅者必须是函数');
@@ -312,18 +387,23 @@ export class Store {
     };
   }
 
+  /**
+   * 从 JSON 数据恢复 Store。
+   * 通过 addCard / addRelationship 公开 API 导入，确保触发 notify/emit。
+   * @param {Object} data - { cards: Array, relationships: Array }
+   * @param {EventBus|null} eventBus
+   * @returns {Store}
+   */
   static fromJSON(data, eventBus = null) {
     const store = new Store(eventBus);
     if (data.cards) {
       data.cards.forEach(card => {
-        store.cards.set(card.id, card);
-        store._index.add(card);
+        store.addCard(card);
       });
     }
     if (data.relationships) {
       data.relationships.forEach(rel => {
-        store.relationships.set(rel.id, rel);
-        store._indexRel(rel);
+        store.addRelationship(rel);
       });
     }
     return store;

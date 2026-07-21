@@ -43,7 +43,7 @@ const frame = new CardFrame('#app', { layoutMode: 'stream' });
 
 ### Q5: 框架的体积有多大？会影响页面加载速度吗？
 
-框架核心文件（`card-framework.js` + `card-framework.css`）合计约 50KB（gzip 后更小）。此外支持按需加载，可通过 `loader.js` 仅加载所需模块（core、render、extras 等），进一步减少初始加载体积。
+未压缩 ESM/IIFE 完整包约 **150KB** 量级（min 约 150KB，详见 `dist/`）；gzip 后更小。框架**零运行时依赖**，单文件 IIFE 即可使用。当前**没有**独立的 `loader.js` 分包加载器；体积优化方向是按需不启用虚拟滚动/进化等可选能力，而非运行时动态切模块。
 
 ---
 

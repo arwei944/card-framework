@@ -66,7 +66,7 @@ export class EvolutionEngine {
       if (this.wsConnection && this.wsConnection.readyState === 1) {
         this.wsConnection.send(JSON.stringify({ type: 'metrics-report', data: metrics }));
       }
-    } catch (e) { /* agent unreachable — ignore */ }
+    } catch { /* agent unreachable — ignore */ }
   }
 
   _startRuleCheck() {
@@ -225,13 +225,13 @@ export class EvolutionEngine {
       var raw = globalThis.localStorage.getItem(this._historyKey());
       var parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed.slice(-1000) : [];
-    } catch (_e) { return []; }
+    } catch { return []; }
   }
 
   _saveHistory() {
     try {
       if (typeof globalThis === 'undefined' || !globalThis.localStorage) return;
       globalThis.localStorage.setItem(this._historyKey(), JSON.stringify(this.evolutionHistory.slice(-1000)));
-    } catch (_e) { /* storage unavailable — keep in-memory only */ }
+    } catch { /* storage unavailable — keep in-memory only */ }
   }
 }

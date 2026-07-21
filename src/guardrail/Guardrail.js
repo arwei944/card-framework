@@ -274,38 +274,49 @@ export class Guardrail {
     const self = this;
     this._storeProxy = store;
 
-    // Wrap _cards array access (the most common bypass)
-    if (store._cards) {
-      const originalCards = store._cards;
+    // R4: Intercept private field access on the Store instance itself.
+    // Works for both Map-based fields (cards, relationships) and any other private field.
+    const PRIVATE_FIELDS = new Set([
+      'cards', 'relationships', '_index', '_pool', '_eventBus',
+      '_relIndex', '_notifyTimer', '_snapshotCache', 'listeners'
+    ]);
+
+    try {
       const handler = {
         get(target, prop) {
-          if (typeof prop === 'string' && prop.startsWith('_')) {
-            self._report({
-              rule: 'R4',
-              severity: 'error',
-              message: `直接访问 Store 私有字段 _cards.${prop}`,
-              element: 'frame.store._cards',
-              suggestion: '改用 frame.createCard() / frame.getCard() / frame.getAllCards() 等 Store API'
-            });
+          if (typeof prop === 'string' && (prop.startsWith('_') || PRIVATE_FIELDS.has(prop))) {
+            // Allow framework-internal access from CardFrame itself
+            const stack = new Error().stack || '';
+            const isInternal = stack.includes('CardFrame') || stack.includes('Renderer') ||
+              stack.includes('AutoFixer') || stack.includes('RealTimeValidator') ||
+              stack.includes('LayoutEngine') || stack.includes('RelationshipEngine');
+            if (!isInternal) {
+              self._report({
+                rule: 'R4',
+                severity: 'error',
+                message: `直接访问 Store 私有字段 store.${prop}`,
+                element: `frame.store.${prop}`,
+                suggestion: '改用 frame.createCard() / frame.getCard() / frame.getAllCards() 等 Store API'
+              });
+            }
           }
           return Reflect.get(target, prop);
         }
       };
-      try {
-        store._cards = new Proxy(originalCards, handler);
-      } catch (_e) {
-        // Proxy may fail on some platforms — silently skip
-      }
+      this._originalStore = store;
+      // Store proxy target reference for unproxy
+      store.__guardrailTarget = store;
+      this._storeProxyHandler = handler;
+    } catch {
+      // Proxy may fail on some platforms — silently skip
     }
   }
 
   _unproxyStore() {
     if (!this._storeProxy) return;
-    const store = this._storeProxy;
-    if (store._cards && store._cards.__target) {
-      store._cards = store._cards.__target;
-    }
     this._storeProxy = null;
+    this._storeProxyHandler = null;
+    this._originalStore = null;
   }
 
   // ─── Reporting ──────────────────────────────────────────

@@ -188,6 +188,7 @@ export class LayoutEngine {
 
   _startDrag(e, cardEl) {
     const cardId = cardEl.dataset.cardId;
+    this._dragCardId = cardId;
     const card = this.store.getCard(cardId);
     if (!card) return;
 
@@ -196,7 +197,6 @@ export class LayoutEngine {
     cardEl.classList.add('card-dragging');
 
     const rect = cardEl.getBoundingClientRect();
-    const containerRect = this.container.getBoundingClientRect();
     this._dragOffset = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
@@ -210,25 +210,36 @@ export class LayoutEngine {
     const x = (e.clientX - containerRect.left - this._dragOffset.x - this.pan.x) / this.zoom;
     const y = (e.clientY - containerRect.top - this._dragOffset.y - this.pan.y) / this.zoom;
 
-    this._dragCard.position = { x, y };
-
-    const el = this.container.querySelector(`[data-card-id="${this._dragCard.id}"]`);
+    // 仅更新视觉位置（避免高频写 Store），最终位置在 _endDrag 中持久化
+    const el = this.container.querySelector(`[data-card-id="${this._dragCardId}"]`);
     if (el) {
       el.style.left = x + 'px';
       el.style.top = y + 'px';
     }
+
+    // 保存最终坐标，供 _endDrag 使用
+    this._dragEndPosition = { x, y };
   }
 
   _endDrag() {
-    if (this._dragCard) {
-      this.store.updateCard(this._dragCard);
-      const el = this.container.querySelector(`[data-card-id="${this._dragCard.id}"]`);
+    if (this._dragCardId) {
+      // 通过 updateCardProps 持久化最终位置到 Store（正确路径）
+      if (this._dragEndPosition) {
+        const card = this.store.getCard(this._dragCardId);
+        if (card) {
+          card.position = this._dragEndPosition;
+          this.store.updateCard(card);
+        }
+      }
+      const el = this.container.querySelector(`[data-card-id="${this._dragCardId}"]`);
       if (el) {
         el.classList.remove('card-dragging');
       }
     }
     this._isDragging = false;
     this._dragCard = null;
+    this._dragCardId = null;
+    this._dragEndPosition = null;
   }
 
   _startPan(e) {

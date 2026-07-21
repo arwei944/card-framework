@@ -66,10 +66,12 @@ function setCors(req, res) {
   }
 }
 
+var { isAuthorized } = require('./auth');
+var allowInsecureAuth = process.env.ALLOW_INSECURE_AUTH === '1' || process.env.ALLOW_INSECURE_AUTH === 'true';
+
 function authorized(req) {
-  if (!config.token) return true;
-  var auth = req.headers['authorization'] || '';
-  return auth === 'Bearer ' + config.token;
+  // Protected routes require a configured Bearer token (health stays open above).
+  return isAuthorized(req, config.token, { allowInsecure: allowInsecureAuth });
 }
 
 function readBody(req, cb) {
@@ -173,7 +175,11 @@ server.on('upgrade', function(req, socket, head) {
 server.listen(config.port, config.bind, function() {
   console.log('Evolution Agent listening on http://' + config.bind + ':' + config.port);
   if (!config.token) {
-    console.log('[evolution-agent] WARNING: running WITHOUT auth token — bind is ' + config.bind + '; do not expose on a network.');
+    if (allowInsecureAuth) {
+      console.log('[evolution-agent] WARNING: ALLOW_INSECURE_AUTH enabled — protected routes accept unauthenticated requests. Never use on a network.');
+    } else {
+      console.log('[evolution-agent] Auth token not set — /api/health is open; write/mutate routes return 401. Set CARD_EVOLUTION_TOKEN (or config.tokenEnv).');
+    }
   }
   if (config.allowedWritePaths.length === 0) {
     console.log('[evolution-agent] WARNING: allowedWritePaths is empty — no file writes permitted.');

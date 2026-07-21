@@ -51,7 +51,7 @@ const { CardFrame } = require(path.resolve(__dirname, '../dist/card-framework.cj
 // ---------- 工具 ----------
 function bench(label, fn, iterations = 1) {
   // warmup
-  try { fn(); } catch (e) { /* warmup 失败忽略 */ }
+  try { fn(); } catch { /* warmup 失败忽略 */ }
   const start = process.hrtime.bigint();
   for (let i = 0; i < iterations; i++) fn();
   const end = process.hrtime.bigint();
@@ -121,7 +121,6 @@ function makeProps(i) {
 
 // 3. 批量创建
 {
-  const frame = makeFrame();
   const batch = Array.from({ length: 100 }, (_, i) => ({ type: 'text', props: makeProps(i) }));
   record(bench('batchCreateCards 100 张', () => {
     // 用一个新 frame 避免无限增长
